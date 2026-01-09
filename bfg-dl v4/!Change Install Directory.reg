@@ -1,7 +1,0 @@
-Windows Registry Editor Version 5.00
-
-;This changes the installation directory for the installers.
-;Your path MUST have double backslashes and NO trailing blackslashes.
-
-[HKEY_LOCAL_MACHINE\Software\Wow6432Node\Big Fish Games\Client\Config]
-"GameBasePath"="Z:\\home\\mako\\Downloads\\installers"
