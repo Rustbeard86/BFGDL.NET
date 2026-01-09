@@ -43,3 +43,36 @@ internal sealed class GraphQlProductItem
 
     [JsonPropertyName("url_key")] public string? UrlKey { get; init; }
 }
+
+// GraphQL Query Variables Types
+internal sealed class GraphQlVariables
+{
+    [JsonPropertyName("currentPage")] public int CurrentPage { get; init; }
+
+    [JsonPropertyName("id")] public required string Id { get; init; }
+
+    [JsonPropertyName("filters")] public required GraphQlFilters Filters { get; init; }
+
+    [JsonPropertyName("pageSize")] public int PageSize { get; init; }
+
+    [JsonPropertyName("sort")] public required GraphQlSort Sort { get; init; }
+}
+
+internal sealed class GraphQlFilters
+{
+    [JsonPropertyName("platform")] public required GraphQlFilter Platform { get; init; }
+
+    [JsonPropertyName("language")] public required GraphQlFilter Language { get; init; }
+
+    [JsonPropertyName("category_uid")] public required GraphQlFilter CategoryUid { get; init; }
+}
+
+internal sealed class GraphQlFilter
+{
+    [JsonPropertyName("eq")] public required string Eq { get; init; }
+}
+
+internal sealed class GraphQlSort
+{
+    [JsonPropertyName("product_list_date")] public required string ProductListDate { get; init; }
+}

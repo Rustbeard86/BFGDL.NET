@@ -35,24 +35,24 @@ public sealed class BigFishCatalogClient(HttpClient httpClient)
         // CategoryUid for the main games listing. This matches the provided sample.
         const string categoryUid = "MTg=";
 
-        var variables = new
+        var variables = new GraphQlVariables
         {
-            currentPage = page,
-            id = categoryUid,
-            filters = new
+            CurrentPage = page,
+            Id = categoryUid,
+            Filters = new GraphQlFilters
             {
-                platform = new { eq = platformId },
-                language = new { eq = languageId },
-                category_uid = new { eq = categoryUid }
+                Platform = new GraphQlFilter { Eq = platformId },
+                Language = new GraphQlFilter { Eq = languageId },
+                CategoryUid = new GraphQlFilter { Eq = categoryUid }
             },
-            pageSize,
-            sort = new { product_list_date = "DESC" }
+            PageSize = pageSize,
+            Sort = new GraphQlSort { ProductListDate = "DESC" }
         };
 
         var queryParams = HttpUtility.ParseQueryString(string.Empty);
         queryParams["query"] = Query;
         queryParams["operationName"] = OperationName;
-        queryParams["variables"] = JsonSerializer.Serialize(variables, JsonOptions);
+        queryParams["variables"] = JsonSerializer.Serialize(variables, AppJsonSerializerContext.Default.GraphQlVariables);
 
         var url = $"{BaseUrl}?{queryParams}";
 

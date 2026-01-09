@@ -13,6 +13,10 @@ namespace BFGDL.NET.Models;
 [JsonSerializable(typeof(GraphQlProducts))]
 [JsonSerializable(typeof(GraphQlPageInfo))]
 [JsonSerializable(typeof(GraphQlProductItem))]
+[JsonSerializable(typeof(GraphQlVariables))]
+[JsonSerializable(typeof(GraphQlFilters))]
+[JsonSerializable(typeof(GraphQlFilter))]
+[JsonSerializable(typeof(GraphQlSort))]
 [JsonSerializable(typeof(InstallerListExportMetadata))]
 [JsonSerializable(typeof(InstallerListExportFailure))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext
