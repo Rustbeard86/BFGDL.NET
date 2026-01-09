@@ -43,98 +43,55 @@ public sealed partial class InstallerListExporter(
 
         try
         {
-            var languagesToFetch = new (string LangLabel, string LanguageId)[]
+            var (langLabel, languageId) = GetLanguageInfo(configuration.Language);
+
+            var wrapIds = new List<string>();
+            var totalPages = 0;
+            var totalCount = 0;
+            var pagesParsed = 0;
+
+            logger.LogInformation("Enumerating catalog via GraphQL for {Platform}/{LangLabel}",
+                configuration.Platform, langLabel);
+
+            var page = 1;
+            while (true)
             {
-                ("L1", "114"),
-                ("L2", "117"),
-                ("L3", "120"),
-                ("L4", "123"),
-                ("L7", "126"),
-                ("L8", "129"),
-                ("L10", "135"),
-                ("L11", "138"),
-                ("L12", "141"),
-                ("L13", "144")
-            };
+                cancellationToken.ThrowIfCancellationRequested();
 
-            var wrapIdsByLang = new ConcurrentDictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+                var pageResult = await catalogClient
+                    .GetCatalogPageAsync(configuration.Platform, languageId, page, PageSize, cancellationToken)
+                    .ConfigureAwait(false);
 
-            var totalPagesByLang = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            var totalCountByLang = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-
-            const int catalogConcurrency = 4;
-            using var catalogSem = new SemaphoreSlim(catalogConcurrency);
-
-            var catalogTasks = languagesToFetch.Select(async t =>
-            {
-                var (langLabel, languageId) = t;
-                await catalogSem.WaitAsync(cancellationToken).ConfigureAwait(false);
-                try
+                if (page == 1)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    logger.LogInformation("Enumerating catalog via GraphQL for {Platform}/{LangLabel}",
-                        configuration.Platform, langLabel);
-
-                    var page = 1;
-                    var langWrapIds = new List<string>();
-                    var totalPages = 0;
-                    var totalCount = 0;
-
-                    while (true)
-                    {
-                        cancellationToken.ThrowIfCancellationRequested();
-
-                        var pageResult = await catalogClient
-                            .GetCatalogPageAsync(configuration.Platform, languageId, page, PageSize, cancellationToken)
-                            .ConfigureAwait(false);
-
-                        if (page == 1)
-                        {
-                            totalPages = pageResult.TotalPages;
-                            totalCount = pageResult.TotalCount;
-                            totalPagesByLang[langLabel] = totalPages;
-                            totalCountByLang[langLabel] = totalCount;
-                        }
-
-                        pagesParsedByL[langLabel] = page;
-
-                        if (pageResult.WrapIds.Count == 0)
-                            break;
-
-                        langWrapIds.AddRange(pageResult.WrapIds);
-
-                        logger.LogInformation(
-                            "Catalog page {Page}/{TotalPages} ({LangLabel}): got {PageCount}; total so far {Total} / {Expected}",
-                            page,
-                            totalPages,
-                            langLabel,
-                            pageResult.WrapIds.Count,
-                            langWrapIds.Count,
-                            totalCount);
-
-                        if (totalPages > 0 && page >= totalPages)
-                            break;
-
-                        page++;
-                    }
-
-                    var distinct = langWrapIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                    wrapIdsByLang[langLabel] = distinct;
-                    wrapIdsFoundByL[langLabel] = distinct.Count;
+                    totalPages = pageResult.TotalPages;
+                    totalCount = pageResult.TotalCount;
                 }
-                finally
-                {
-                    catalogSem.Release();
-                }
-            });
 
-            await Task.WhenAll(catalogTasks).ConfigureAwait(false);
+                pagesParsed = page;
 
-            var allWrapIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var ids in wrapIdsByLang.Values)
-            foreach (var id in ids)
-                allWrapIds.Add(id);
+                if (pageResult.WrapIds.Count == 0)
+                    break;
+
+                wrapIds.AddRange(pageResult.WrapIds);
+
+                logger.LogInformation(
+                    "Catalog page {Page}/{TotalPages} ({LangLabel}): got {PageCount}; total so far {Total} / {Expected}",
+                    page,
+                    totalPages,
+                    langLabel,
+                    pageResult.WrapIds.Count,
+                    wrapIds.Count,
+                    totalCount);
+
+                if (totalPages > 0 && page >= totalPages)
+                    break;
+
+                page++;
+            }
+
+            var distinctWrapIds = wrapIds.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var allWrapIds = new HashSet<string>(distinctWrapIds, StringComparer.OrdinalIgnoreCase);
 
             if (exportLimit.HasValue)
                 allWrapIds = allWrapIds.Take(exportLimit.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -225,14 +182,12 @@ public sealed partial class InstallerListExporter(
                 FinishedAtUtc = DateTimeOffset.UtcNow,
                 DurationSeconds = sw.Elapsed.TotalSeconds,
                 PageSize = PageSize,
-                PagesParsedByLanguageL = pagesParsedByL.ToDictionary(k => k.Key, v => v.Value,
-                    StringComparer.OrdinalIgnoreCase),
-                WrapIdsFoundByLanguageL = wrapIdsFoundByL.ToDictionary(k => k.Key, v => v.Value,
-                    StringComparer.OrdinalIgnoreCase),
+                PagesParsedByLanguageL = new Dictionary<string, int> { [langLabel] = pagesParsed },
+                WrapIdsFoundByLanguageL = new Dictionary<string, int> { [langLabel] = distinctWrapIds.Count },
                 GamesExportedByLanguageL = gamesExportedByL.ToDictionary(k => k.Key, v => v.Value,
                     StringComparer.OrdinalIgnoreCase),
-                CatalogTotalPagesByLanguageL = totalPagesByLang,
-                CatalogTotalCountByLanguageL = totalCountByLang,
+                CatalogTotalPagesByLanguageL = new Dictionary<string, int> { [langLabel] = totalPages },
+                CatalogTotalCountByLanguageL = new Dictionary<string, int> { [langLabel] = totalCount },
                 TotalWrapIdsFound = allWrapIds.Count,
                 TotalGamesExported = gamesExportedByL.Values.Sum(),
                 TotalSegmentsExported = totalSegmentsExported,
@@ -309,6 +264,24 @@ public sealed partial class InstallerListExporter(
         var m = LanguageFromWrapIdRegex().Match(wrapId);
         if (!m.Success) return "L?";
         return "L" + m.Groups[1].Value;
+    }
+
+    private static (string LangLabel, string LanguageId) GetLanguageInfo(Language language)
+    {
+        return language switch
+        {
+            Language.English => ("L1", "114"),
+            Language.German => ("L2", "117"),
+            Language.Spanish => ("L3", "120"),
+            Language.French => ("L4", "123"),
+            Language.Italian => ("L7", "126"),
+            Language.Japanese => ("L8", "129"),
+            Language.Dutch => ("L10", "135"),
+            Language.Swedish => ("L11", "138"),
+            Language.Danish => ("L12", "141"),
+            Language.Portuguese => ("L13", "144"),
+            _ => throw new ArgumentOutOfRangeException(nameof(language), language, null)
+        };
     }
 
     [GeneratedRegex(@"T\d+L(\d+)", RegexOptions.IgnoreCase, "en-US")]

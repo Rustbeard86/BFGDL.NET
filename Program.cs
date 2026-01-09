@@ -9,10 +9,9 @@ namespace BFGDL.NET;
 
 internal static class Program
 {
-    [STAThread]
-    private static int Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
-        return MainAsync(args).GetAwaiter().GetResult();
+        return await MainAsync(args);
     }
 
     private static async Task<int> MainAsync(string[] args)
