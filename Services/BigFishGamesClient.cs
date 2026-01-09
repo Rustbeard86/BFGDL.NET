@@ -14,7 +14,8 @@ public sealed class BigFishGamesClient(
 
     public async Task<GameInfo> GetGameInfoAsync(string wrapId, CancellationToken cancellationToken = default)
     {
-        logger.LogDebug("Fetching game info for WrapID: {WrapId}", wrapId);
+        if (logger.IsEnabled(LogLevel.Debug))
+            logger.LogDebug("Fetching game info for WrapID: {WrapId}", wrapId);
 
         var requestXml = BuildRequestXml(wrapId);
         var content = new StringContent(requestXml, Encoding.UTF8, "application/xml");
@@ -114,8 +115,9 @@ public sealed class BigFishGamesClient(
                                      $"Download info not found in response for WrapID: {wrapId}");
         var segments = ParseDownloadSegments(downloadInfoMember);
 
-        logger.LogInformation("Retrieved game info: {GameId} - {GameName} with {SegmentCount} segments",
-            gameId, gameName, segments.Count);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Retrieved game info: {GameId} - {GameName} with {SegmentCount} segments",
+                gameId, gameName, segments.Count);
 
         return new GameInfo
         {

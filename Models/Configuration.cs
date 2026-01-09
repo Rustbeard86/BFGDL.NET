@@ -43,7 +43,7 @@ public sealed record DownloadOptions
 
     public int MaxConcurrentDownloads
     {
-        get => field;
+        get;
         init
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
@@ -56,7 +56,7 @@ public sealed record DownloadOptions
 
     public string DownloadUrl
     {
-        get => field;
+        get;
         init => field = value.TrimEnd('/') + "/";
     } = "http://binscentral.bigfishgames.com/downloads/";
 }

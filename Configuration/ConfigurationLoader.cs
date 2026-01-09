@@ -1,11 +1,9 @@
 using BFGDL.NET.Models;
-using JetBrains.Annotations;
 
 namespace BFGDL.NET.Configuration;
 
 public interface IConfigurationLoader
 {
-    [UsedImplicitly]
     Task<AppConfiguration> LoadConfigurationAsync(string? configPath = null);
 }
 

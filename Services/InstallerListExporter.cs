@@ -50,8 +50,9 @@ public sealed partial class InstallerListExporter(
             var totalCount = 0;
             var pagesParsed = 0;
 
-            logger.LogInformation("Enumerating catalog via GraphQL for {Platform}/{LangLabel}",
-                configuration.Platform, langLabel);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Enumerating catalog via GraphQL for {Platform}/{LangLabel}",
+                    configuration.Platform, langLabel);
 
             var page = 1;
             while (true)
@@ -75,14 +76,15 @@ public sealed partial class InstallerListExporter(
 
                 wrapIds.AddRange(pageResult.WrapIds);
 
-                logger.LogInformation(
-                    "Catalog page {Page}/{TotalPages} ({LangLabel}): got {PageCount}; total so far {Total} / {Expected}",
-                    page,
-                    totalPages,
-                    langLabel,
-                    pageResult.WrapIds.Count,
-                    wrapIds.Count,
-                    totalCount);
+                if (logger.IsEnabled(LogLevel.Information))
+                    logger.LogInformation(
+                        "Catalog page {Page}/{TotalPages} ({LangLabel}): got {PageCount}; total so far {Total} / {Expected}",
+                        page,
+                        totalPages,
+                        langLabel,
+                        pageResult.WrapIds.Count,
+                        wrapIds.Count,
+                        totalCount);
 
                 if (totalPages > 0 && page >= totalPages)
                     break;
@@ -96,7 +98,8 @@ public sealed partial class InstallerListExporter(
             if (exportLimit.HasValue)
                 allWrapIds = allWrapIds.Take(exportLimit.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            logger.LogInformation("Resolving game info for {Count} WrapIDs (jobs={Jobs})", allWrapIds.Count, jobs);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation("Resolving game info for {Count} WrapIDs (jobs={Jobs})", allWrapIds.Count, jobs);
 
             using var sem = new SemaphoreSlim(jobs);
             var tasks = new List<Task>(allWrapIds.Count);
@@ -152,7 +155,8 @@ public sealed partial class InstallerListExporter(
                             ExceptionType = ex.GetType().FullName ?? ex.GetType().Name,
                             Message = ex.Message
                         });
-                        logger.LogWarning(ex, "Failed to export WrapID {WrapId}", wrapId);
+                        if (logger.IsEnabled(LogLevel.Warning))
+                            logger.LogWarning(ex, "Failed to export WrapID {WrapId}", wrapId);
                     }
                     finally
                     {
@@ -206,11 +210,12 @@ public sealed partial class InstallerListExporter(
             await JsonSerializer.SerializeAsync(metaStream, meta, PrettyJsonSerializerOptions, cancellationToken)
                 .ConfigureAwait(false);
 
-            logger.LogInformation(
-                "Installer JSON export complete. Total games: {TotalGames}; failed: {FailedGames}; duration: {Duration}.",
-                meta.TotalGamesExported,
-                failedGames,
-                sw.Elapsed);
+            if (logger.IsEnabled(LogLevel.Information))
+                logger.LogInformation(
+                    "Installer JSON export complete. Total games: {TotalGames}; failed: {FailedGames}; duration: {Duration}.",
+                    meta.TotalGamesExported,
+                    failedGames,
+                    sw.Elapsed);
         }
         finally
         {

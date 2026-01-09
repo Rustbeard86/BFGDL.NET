@@ -8,9 +8,9 @@ A modern, cross-platform Big Fish Games downloader implemented in C# 14 with .NE
 - Resume Support - Automatically resumes interrupted downloads
 - Catalog Fetching - Fetch latest games directly from Big Fish Games catalog via GraphQL API
 - Configuration File Support - Optional config.ini for default settings
-- Professional CLI - Clean, properly escaped output using Spectre.Console
+- Professional CLI - Clean output with proper formatting
 - SOLID Architecture - Built with dependency injection and clean interfaces
-- Minimal Dependencies - Only Microsoft.Extensions and Spectre.Console
+- Minimal Dependencies - Only Microsoft.Extensions
 - C# 14 Features - Field keyword, collection expressions, primary constructors, generated regex
 - Native AOT Support - Can be published as a native executable
 - Cross-Platform - Runs on Windows, macOS, and Linux
@@ -185,7 +185,6 @@ BFGDL.NET/
 │   ├── DownloadService.cs        # Multi-threaded downloader
 │   ├── InstallerListExporter.cs  # JSON exporter for installers
 │   ├── HtmlSanitizer.cs          # HTML entity decoder
-│   ├── ProgressColumns.cs        # Custom Spectre.Console columns
 ├── Application.cs                # Main application orchestration
 ├── CommandLineOptions.cs          # CLI argument parser
 ├── Program.cs                    # Entry point with DI setup
@@ -201,7 +200,7 @@ BFGDL.NET/
 | Catalog Access | Playwright (~180MB) | GraphQL API (lightweight) |
 | Downloads | aria2 (external) | Native .NET HttpClient |
 | Configuration | config.ini only | config.ini + CLI overrides |
-| Dependencies | playwright, beautifulsoup4, aria2, jq, xq | Microsoft.Extensions, Spectre.Console |
+| Dependencies | playwright, beautifulsoup4, aria2, jq, xq | Microsoft.Extensions |
 | Architecture | Script-based | SOLID with DI |
 | Type Safety | Dynamic | Strongly typed with records |
 | Performance | Good | Excellent (compiled, AOT-ready) |
@@ -213,7 +212,7 @@ BFGDL.NET/
 2. **Type Safety**: Compile-time checking prevents many runtime errors
 3. **Better Performance**: Compiled code with optimizations
 4. **AOT Support**: Can be published as native executable
-5. **Professional Output**: Spectre.Console provides clean, properly escaped output
+5. **Professional Output**: Clean, properly escaped output
 6. **Flexible Configuration**: Config file + command-line overrides
 7. **Testable**: Interface-based design enables easy unit testing
 8. **Cross-Platform**: Native support for Windows, macOS, and Linux
@@ -272,4 +271,3 @@ This project reimplements the functionality of bfg-dl in C# .NET 10.
 
 - Original bfg-dl Python implementation by com1100 and contributors
 - bfg_wrapid_fetcher by kevinj93
-- Spectre.Console library for beautiful CLI output

@@ -11,7 +11,8 @@ public sealed partial class InstallerWrapIdFetcher(ILogger<InstallerWrapIdFetche
     public Task<IReadOnlyList<string>> FetchWrapIdsAsync(int count, CancellationToken cancellationToken = default)
     {
         Directory.CreateDirectory(InstallersDirectory);
-        logger.LogInformation("Scanning directory for installers: {Directory}", InstallersDirectory);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Scanning directory for installers: {Directory}", InstallersDirectory);
 
         var wrapIds = Directory.GetFiles(InstallersDirectory, "*l1_gF*")
             .Select(Path.GetFileName)
@@ -21,12 +22,15 @@ public sealed partial class InstallerWrapIdFetcher(ILogger<InstallerWrapIdFetche
             .Where(wrapId => wrapId is not null)
             .Select(wrapId =>
             {
-                logger.LogDebug("Found WrapID {WrapId} from installer", wrapId!.Value);
-                return wrapId.Value;
+                var id = wrapId!.Value;
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("Found WrapID {WrapId} from installer", id);
+                return id;
             })
             .ToList();
 
-        logger.LogInformation("Found {Count} WrapIDs from installers", wrapIds.Count);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Found {Count} WrapIDs from installers", wrapIds.Count);
 
         return Task.FromResult<IReadOnlyList<string>>(wrapIds);
     }
