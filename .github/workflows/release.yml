@@ -159,8 +159,15 @@ jobs:
       - name: Install cross-compilation dependencies (Linux ARM64 AOT)
         if: matrix.rid == 'linux-arm64' && matrix.aot == true
         run: |
+          sudo dpkg --add-architecture arm64
+          sudo bash -c 'cat > /etc/apt/sources.list.d/arm64.list <<EOF
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy universe
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates universe
+          EOF'
           sudo apt-get update
-          sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y clang zlib1g-dev:arm64 gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev:arm64
 
       - name: Display .NET info
         run: dotnet --info
