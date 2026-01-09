@@ -16,7 +16,8 @@ public sealed class BigFishCatalogClient(HttpClient httpClient)
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        TypeInfoResolver = AppJsonSerializerContext.Default
     };
 
     public async Task<CatalogPage> GetCatalogPageAsync(
@@ -63,7 +64,7 @@ public sealed class BigFishCatalogClient(HttpClient httpClient)
         res.EnsureSuccessStatusCode();
 
         await using var stream = await res.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var body = await JsonSerializer.DeserializeAsync<GraphQlResponse>(stream, JsonOptions, cancellationToken)
+        var body = await JsonSerializer.DeserializeAsync(stream, AppJsonSerializerContext.Default.GraphQlResponse, cancellationToken)
             .ConfigureAwait(false);
 
         var products = body?.Data?.Products;
@@ -109,46 +110,4 @@ public sealed class BigFishCatalogClient(HttpClient httpClient)
     }
 
     public sealed record CatalogPage(IReadOnlyList<string> WrapIds, int TotalCount, int TotalPages);
-
-    private sealed class GraphQlResponse
-    {
-        public GraphQlData? Data { get; init; }
-    }
-
-    private sealed class GraphQlData
-    {
-        public Products? Products { get; init; }
-    }
-
-    private sealed class Products
-    {
-        public List<ProductItem>? Items { get; init; }
-
-        [JsonPropertyName("total_count")] public int TotalCount { get; init; }
-
-        [JsonPropertyName("page_info")] public PageInfo? PageInfo { get; init; }
-    }
-
-    private sealed class PageInfo
-    {
-        [JsonPropertyName("total_pages")] public int TotalPages { get; init; }
-    }
-
-    private sealed class ProductItem
-    {
-        public string Uid { get; } = string.Empty;
-
-        public string? Name { get; init; }
-
-        public int? Platform { get; init; }
-
-        public int? Language { get; init; }
-
-        [JsonPropertyName("product_list_date")]
-        public string? ProductListDate { get; init; }
-
-        public string? Sku { get; init; }
-
-        [JsonPropertyName("url_key")] public string? UrlKey { get; init; }
-    }
 }

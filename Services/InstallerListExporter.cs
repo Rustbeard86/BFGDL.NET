@@ -15,8 +15,6 @@ public sealed partial class InstallerListExporter(
 {
     private const int PageSize = 250;
 
-    private static readonly JsonSerializerOptions PrettyJsonSerializerOptions = new() { WriteIndented = true };
-
     public async Task ExportAsync(string exportFormat, int jobs, int? exportLimit, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exportFormat);
@@ -207,7 +205,8 @@ public sealed partial class InstallerListExporter(
 
             await using var metaStream = new FileStream(metaPath, FileMode.Create, FileAccess.Write, FileShare.Read,
                 1024 * 64, true);
-            await JsonSerializer.SerializeAsync(metaStream, meta, PrettyJsonSerializerOptions, cancellationToken)
+            await JsonSerializer.SerializeAsync(metaStream, meta,
+                    AppJsonSerializerContext.Default.InstallerListExportMetadata, cancellationToken)
                 .ConfigureAwait(false);
 
             if (logger.IsEnabled(LogLevel.Information))

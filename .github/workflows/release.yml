@@ -158,11 +158,11 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.aot }}" == "true" ]; then
-            dotnet publish -c Release -r ${{ matrix.rid }} --self-contained -p:PublishAot=true -p:StripSymbols=true -o ./publish
+            dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishAot=true -p:StripSymbols=true -o ./publish
           elif [ "${{ matrix.self-contained }}" == "true" ]; then
-            dotnet publish -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish
+            dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish
           else
-            dotnet publish -c Release -r ${{ matrix.rid }} --no-self-contained -o ./publish
+            dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --no-self-contained -o ./publish
           fi
 
       - name: Create archive (Windows)
