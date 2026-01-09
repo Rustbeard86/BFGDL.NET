@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net10.0-windows</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<InvariantGlobalization>true</InvariantGlobalization>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="bfg-dl v4\**" />
+		<Compile Remove="bfg_keygen_2025.12.05\**" />
+		<Compile Remove="Documentation\**" />
+		<Compile Remove="publish\**" />
+		<Compile Remove="RefJS\**" />
+		<EmbeddedResource Remove="bfg-dl v4\**" />
+		<EmbeddedResource Remove="bfg_keygen_2025.12.05\**" />
+		<EmbeddedResource Remove="Documentation\**" />
+		<EmbeddedResource Remove="publish\**" />
+		<EmbeddedResource Remove="RefJS\**" />
+		<None Remove="bfg-dl v4\**" />
+		<None Remove="bfg_keygen_2025.12.05\**" />
+		<None Remove="Documentation\**" />
+		<None Remove="publish\**" />
+		<None Remove="RefJS\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove="bfg_keygen_2025.12.05.rar" />
+		<None Remove="download-list.txt" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="JetBrains.Annotations" Version="2025.2.4" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="config.ini">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="appsettings.json">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+</Project>

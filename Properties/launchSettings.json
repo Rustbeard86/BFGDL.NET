@@ -1,0 +1,8 @@
+{
+    "profiles": {
+        "BFGDL.NET": {
+            "commandName": "Project",
+            "commandLineArgs": "--export-installers-json=pretty -p win"
+        }
+    }
+}

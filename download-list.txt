@@ -1,0 +1,126 @@
+# F17496T1L1 - Christmas Stories_ By Candlelight
+http://binscentral.bigfishgames.com/downloads/2120195e944ec739d59ed6b6efe0bf83745a5802.exe
+ out=F17496T1L1.exe
+http://binscentral.bigfishgames.com/downloads/bc15d82550afa1b02af74095d835a59ec1c0cd8f.zip.001
+ out=F17496T1L1.zip.001
+http://binscentral.bigfishgames.com/downloads/7a68f3f9073adafdb8c7319c79b33f247276f32c.zip.002
+ out=F17496T1L1.zip.002
+http://binscentral.bigfishgames.com/downloads/383be78de332b96bbbe130aba4539036fb5f9a4f.zip.003
+ out=F17496T1L1.zip.003
+http://binscentral.bigfishgames.com/downloads/86a4a17b3fe9fe7be7297726c9a15b860105c45e.zip.004
+ out=F17496T1L1.zip.004
+http://binscentral.bigfishgames.com/downloads/c13768a0ee3882d93b8ce8b4339dc0ffd384609c.zip.005
+ out=F17496T1L1.zip.005
+http://binscentral.bigfishgames.com/downloads/21c0bc40eee17e6c9d4efae7977f388790f0ef6d.zip.006
+ out=F17496T1L1.zip.006
+http://binscentral.bigfishgames.com/downloads/274067ab2e3ac73a4c05dcfdd05df12c5cb0cfc3.zip.007
+ out=F17496T1L1.zip.007
+http://binscentral.bigfishgames.com/downloads/7bf27c4944f96a81568718f87487d443d1dacb19.zip.008
+ out=F17496T1L1.zip.008
+http://binscentral.bigfishgames.com/downloads/bdd587ad01780989d17487a71fb53781ba1f987f.zip.009
+ out=F17496T1L1.zip.009
+
+# F17499T1L1 - Home Rescue_ Clean and Restore Collector's Edition
+http://binscentral.bigfishgames.com/downloads/495d8e582cd91771620eaadb1f56373e91d25d64.exe
+ out=F17499T1L1.exe
+http://binscentral.bigfishgames.com/downloads/cf9d9897be92e5840d3c84ada49f71a9e8f92ce2.zip.001
+ out=F17499T1L1.zip.001
+http://binscentral.bigfishgames.com/downloads/54dc547531eaa1617cbc2230bc6a1e819d31b63c.zip.002
+ out=F17499T1L1.zip.002
+http://binscentral.bigfishgames.com/downloads/94c4e3f1ec66fb5c9bb352fe3455706a4c6b5def.zip.003
+ out=F17499T1L1.zip.003
+http://binscentral.bigfishgames.com/downloads/18ba958f137c345be9190caf82b4f4c48d5c3d58.zip.004
+ out=F17499T1L1.zip.004
+http://binscentral.bigfishgames.com/downloads/db43dafb75732ef65a9f1f9af04cf9db6abb59d9.zip.005
+ out=F17499T1L1.zip.005
+http://binscentral.bigfishgames.com/downloads/dbdbadb3b55e231dabbc08376e6ab86d9a788ac3.zip.006
+ out=F17499T1L1.zip.006
+http://binscentral.bigfishgames.com/downloads/f1c6015f2451ec8f367b868259fe36cab35672fd.zip.007
+ out=F17499T1L1.zip.007
+http://binscentral.bigfishgames.com/downloads/491be890536df880459bda733b54b3ea05c7bc8f.zip.008
+ out=F17499T1L1.zip.008
+http://binscentral.bigfishgames.com/downloads/0c72f4de322d70b323b3c7ab6f4bb8bcc333409e.zip.009
+ out=F17499T1L1.zip.009
+http://binscentral.bigfishgames.com/downloads/796fd95fa298999e7ab9cb39b71a74ffdd98866e.zip.010
+ out=F17499T1L1.zip.010
+
+# F17501T1L1 - Christmas Fables_ Nutcracker's Tale
+http://binscentral.bigfishgames.com/downloads/4ae89eb1f504458d299cd76bd1593a7ef0c95588.exe
+ out=F17501T1L1.exe
+http://binscentral.bigfishgames.com/downloads/c51c75f8b3de4cabfa8a6e29888f20ba2be04996.zip.001
+ out=F17501T1L1.zip.001
+http://binscentral.bigfishgames.com/downloads/2e637f1bbbb44ad8c1b07cce6ed4163d6be08664.zip.002
+ out=F17501T1L1.zip.002
+http://binscentral.bigfishgames.com/downloads/c4e9de5108eda5b7b5575ceb7bf3c267143c1084.zip.003
+ out=F17501T1L1.zip.003
+http://binscentral.bigfishgames.com/downloads/fea01f2b90883c62f986232a62403f34d8f814d5.zip.004
+ out=F17501T1L1.zip.004
+http://binscentral.bigfishgames.com/downloads/f58141fd199e19213195cc14ffc3c9cf592e58bb.zip.005
+ out=F17501T1L1.zip.005
+http://binscentral.bigfishgames.com/downloads/897ce80c1d02ea457c781d3e2b05b2bf299a937e.zip.006
+ out=F17501T1L1.zip.006
+http://binscentral.bigfishgames.com/downloads/4d90721ae7fd212725a9b2393faf400bdcf53a10.zip.007
+ out=F17501T1L1.zip.007
+http://binscentral.bigfishgames.com/downloads/55bf8881746d978f0ca057bdcb10bef01657bb80.zip.008
+ out=F17501T1L1.zip.008
+http://binscentral.bigfishgames.com/downloads/26895e136ec7ec92d5086c32d0d377fb9fe75a2a.zip.009
+ out=F17501T1L1.zip.009
+http://binscentral.bigfishgames.com/downloads/852ef0c5dc38155e6121d6f106c33522d13bb4a0.zip.010
+ out=F17501T1L1.zip.010
+http://binscentral.bigfishgames.com/downloads/72a71394de76c18afcdfa1decfd778e112eb1375.zip.011
+ out=F17501T1L1.zip.011
+http://binscentral.bigfishgames.com/downloads/79120fbeb49857df8bcf87bbdf047929bbe693f1.zip.012
+ out=F17501T1L1.zip.012
+http://binscentral.bigfishgames.com/downloads/627ea3e4aa1459cfbf008068c2368f4f6cbdc063.zip.013
+ out=F17501T1L1.zip.013
+http://binscentral.bigfishgames.com/downloads/558f0684a596e030f03c23f8afdeb700d96cb635.zip.014
+ out=F17501T1L1.zip.014
+http://binscentral.bigfishgames.com/downloads/6c75d7a46a2cc43015a3d6fba13ec922c6b216be.zip.015
+ out=F17501T1L1.zip.015
+http://binscentral.bigfishgames.com/downloads/45bb4e160a370cde3c109a5235cdfd4d93c39bd2.zip.016
+ out=F17501T1L1.zip.016
+http://binscentral.bigfishgames.com/downloads/1e4828a7cc1e6f48fba0a2c0d62ef484a3b831ff.zip.017
+ out=F17501T1L1.zip.017
+http://binscentral.bigfishgames.com/downloads/52995facde92ceaf919216b372732ae3de791e29.zip.018
+ out=F17501T1L1.zip.018
+http://binscentral.bigfishgames.com/downloads/c2388fcf7a4e141b317d8e63d33da7e2a617670d.zip.019
+ out=F17501T1L1.zip.019
+http://binscentral.bigfishgames.com/downloads/29e4bda36ac6de1bbd450d8ff461b2ef40d0167f.zip.020
+ out=F17501T1L1.zip.020
+http://binscentral.bigfishgames.com/downloads/9b78d35850281d73ad61909c50e9ffaae9d14118.zip.021
+ out=F17501T1L1.zip.021
+
+# F17494T1L1 - Hiddenius_ Cozy Design
+http://binscentral.bigfishgames.com/downloads/b462708ca06fc888596b4adfba6ba1843b4841d6.exe
+ out=F17494T1L1.exe
+http://binscentral.bigfishgames.com/downloads/e3c8e55a04043798bb5fe4b40b363ebb2fc608d9.zip.001
+ out=F17494T1L1.zip.001
+http://binscentral.bigfishgames.com/downloads/21226597887d5fa90efa5d2155b15b0b3ec9282e.zip.002
+ out=F17494T1L1.zip.002
+http://binscentral.bigfishgames.com/downloads/7c773280e7ebc9e9a427fb12c935cf603770723a.zip.003
+ out=F17494T1L1.zip.003
+http://binscentral.bigfishgames.com/downloads/d2822bcbc10c3f96a9b4b84874ca6574916fdbf0.zip.004
+ out=F17494T1L1.zip.004
+
+# F17497T1L1 - StarL9
+http://binscentral.bigfishgames.com/downloads/5452a57e85824c0c106df46adea5d4922e25a21d.exe
+ out=F17497T1L1.exe
+http://binscentral.bigfishgames.com/downloads/fd0ec10e47fb9ff588c012e7f6b238ffc0710bd9.zip.001
+ out=F17497T1L1.zip.001
+http://binscentral.bigfishgames.com/downloads/ce4689ce6c559a6a2ed00ee63cabb0933dd6f429.zip.002
+ out=F17497T1L1.zip.002
+http://binscentral.bigfishgames.com/downloads/d16d67038c750ca3da5522ce554ab9c41336788a.zip.003
+ out=F17497T1L1.zip.003
+http://binscentral.bigfishgames.com/downloads/45f7ba8627f706ffbe3fb184d09cfdb7096c21ca.zip.004
+ out=F17497T1L1.zip.004
+http://binscentral.bigfishgames.com/downloads/8aff995f71103329ef310bcd6980f3a4464f76be.zip.005
+ out=F17497T1L1.zip.005
+http://binscentral.bigfishgames.com/downloads/1226083753010a4e7a7e7af07506fafbec27e063.zip.006
+ out=F17497T1L1.zip.006
+http://binscentral.bigfishgames.com/downloads/9161dc4509d7a0a1470d1a904e0bb9683d8bdf93.zip.007
+ out=F17497T1L1.zip.007
+http://binscentral.bigfishgames.com/downloads/b37a62a00ac53898e13f6cb0d3f31779b4d3aa3a.zip.008
+ out=F17497T1L1.zip.008
+http://binscentral.bigfishgames.com/downloads/6a8f1f21fd028a3f6707eea6b52b87adf8b81a6b.zip.009
+ out=F17497T1L1.zip.009
+
