@@ -151,12 +151,16 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
-
+          
+      - name: Clean before build (macOS)
+        if: runner.os == 'macOS'
+        run: dotnet clean && rm -rf bin obj
+        
       - name: Install cross-compilation dependencies (Linux ARM64 AOT)
         if: matrix.rid == 'linux-arm64' && matrix.aot == true
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu
+          sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
       - name: Display .NET info
         run: dotnet --info
@@ -168,7 +172,18 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.aot }}" == "true" ]; then
-            dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishAot=true -p:StripSymbols=true -o ./publish
+            if [ "${{ matrix.rid }}" == "linux-arm64" ]; then
+              # Linux ARM64 cross-compilation requires special handling
+              dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --self-contained \
+                -p:PublishAot=true \
+                -p:StripSymbols=false \
+                -p:IlcGenerateMetadataLog=false \
+                -p:CppCompilerAndLinker=clang \
+                -p:SysRoot=/usr/aarch64-linux-gnu \
+                -o ./publish
+            else
+              dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishAot=true -p:StripSymbols=true -o ./publish
+            fi
           elif [ "${{ matrix.self-contained }}" == "true" ]; then
             dotnet publish BFGDL.NET.csproj -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish
           else
