@@ -1,0 +1,319 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Windows x64 builds
+          - name: Windows x64 (Framework-Dependent)
+            os: windows-latest
+            rid: win-x64
+            self-contained: false
+            aot: false
+            artifact-name: bfgdl-net-win-x64-fd
+          - name: Windows x64 (Self-Contained)
+            os: windows-latest
+            rid: win-x64
+            self-contained: true
+            aot: false
+            artifact-name: bfgdl-net-win-x64-sc
+          - name: Windows x64 (Native AOT)
+            os: windows-latest
+            rid: win-x64
+            self-contained: true
+            aot: true
+            artifact-name: bfgdl-net-win-x64-aot
+
+          # Windows ARM64 builds
+          - name: Windows ARM64 (Framework-Dependent)
+            os: windows-latest
+            rid: win-arm64
+            self-contained: false
+            aot: false
+            artifact-name: bfgdl-net-win-arm64-fd
+          - name: Windows ARM64 (Self-Contained)
+            os: windows-latest
+            rid: win-arm64
+            self-contained: true
+            aot: false
+            artifact-name: bfgdl-net-win-arm64-sc
+          - name: Windows ARM64 (Native AOT)
+            os: windows-latest
+            rid: win-arm64
+            self-contained: true
+            aot: true
+            artifact-name: bfgdl-net-win-arm64-aot
+
+          # Linux x64 builds
+          - name: Linux x64 (Framework-Dependent)
+            os: ubuntu-latest
+            rid: linux-x64
+            self-contained: false
+            aot: false
+            artifact-name: bfgdl-net-linux-x64-fd
+          - name: Linux x64 (Self-Contained)
+            os: ubuntu-latest
+            rid: linux-x64
+            self-contained: true
+            aot: false
+            artifact-name: bfgdl-net-linux-x64-sc
+          - name: Linux x64 (Native AOT)
+            os: ubuntu-latest
+            rid: linux-x64
+            self-contained: true
+            aot: true
+            artifact-name: bfgdl-net-linux-x64-aot
+
+          # Linux ARM64 builds
+          - name: Linux ARM64 (Framework-Dependent)
+            os: ubuntu-latest
+            rid: linux-arm64
+            self-contained: false
+            aot: false
+            artifact-name: bfgdl-net-linux-arm64-fd
+          - name: Linux ARM64 (Self-Contained)
+            os: ubuntu-latest
+            rid: linux-arm64
+            self-contained: true
+            aot: false
+            artifact-name: bfgdl-net-linux-arm64-sc
+          - name: Linux ARM64 (Native AOT)
+            os: ubuntu-latest
+            rid: linux-arm64
+            self-contained: true
+            aot: true
+            artifact-name: bfgdl-net-linux-arm64-aot
+
+          # macOS x64 builds
+          - name: macOS x64 (Framework-Dependent)
+            os: macos-latest
+            rid: osx-x64
+            self-contained: false
+            aot: false
+            artifact-name: bfgdl-net-osx-x64-fd
+          - name: macOS x64 (Self-Contained)
+            os: macos-latest
+            rid: osx-x64
+            self-contained: true
+            aot: false
+            artifact-name: bfgdl-net-osx-x64-sc
+          - name: macOS x64 (Native AOT)
+            os: macos-latest
+            rid: osx-x64
+            self-contained: true
+            aot: true
+            artifact-name: bfgdl-net-osx-x64-aot
+
+          # macOS ARM64 builds (Apple Silicon)
+          - name: macOS ARM64 (Framework-Dependent)
+            os: macos-latest
+            rid: osx-arm64
+            self-contained: false
+            aot: false
+            artifact-name: bfgdl-net-osx-arm64-fd
+          - name: macOS ARM64 (Self-Contained)
+            os: macos-latest
+            rid: osx-arm64
+            self-contained: true
+            aot: false
+            artifact-name: bfgdl-net-osx-arm64-sc
+          - name: macOS ARM64 (Native AOT)
+            os: macos-latest
+            rid: osx-arm64
+            self-contained: true
+            aot: true
+            artifact-name: bfgdl-net-osx-arm64-aot
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build and Publish
+        shell: bash
+        run: |
+          if [ "${{ matrix.aot }}" == "true" ]; then
+            dotnet publish -c Release -r ${{ matrix.rid }} --self-contained -p:PublishAot=true -p:StripSymbols=true -o ./publish
+          elif [ "${{ matrix.self-contained }}" == "true" ]; then
+            dotnet publish -c Release -r ${{ matrix.rid }} --self-contained -p:PublishSingleFile=true -p:PublishTrimmed=true -o ./publish
+          else
+            dotnet publish -c Release -r ${{ matrix.rid }} --no-self-contained -o ./publish
+          fi
+
+      - name: Create archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.version || github.ref_name }}"
+          Compress-Archive -Path ./publish/* -DestinationPath "./${{ matrix.artifact-name }}-$version.zip"
+
+      - name: Create archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          version="${{ github.event.inputs.version || github.ref_name }}"
+          cd publish
+          chmod +x BFGDL.NET 2>/dev/null || true
+          tar -czf "../${{ matrix.artifact-name }}-$version.tar.gz" *
+          cd ..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: |
+            ./*.zip
+            ./*.tar.gz
+          retention-days: 5
+
+  create-release:
+    name: Create GitHub Release
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Display structure
+        run: ls -R ./artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          find ./artifacts -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} ./release-files/ \;
+          ls -lh ./release-files/
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          version="${{ github.event.inputs.version || github.ref_name }}"
+          cat > release-notes.md << 'EOF'
+          # BFGDL.NET $version
+
+          Big Fish Games Downloader - Cross-platform implementation in C# with .NET 10
+
+          ## Download Options
+
+          Choose the version that best fits your needs:
+
+          ### Framework-Dependent (FD)
+          - Smallest download size
+          - Requires .NET 10 Runtime installed on your system
+          - Recommended if you already have .NET 10 or plan to use multiple .NET applications
+
+          ### Self-Contained (SC)
+          - Includes .NET runtime
+          - No .NET installation required
+          - Larger download size (~60-80 MB)
+          - Single-file executable (trimmed)
+
+          ### Native AOT
+          - Compiled to native machine code
+          - Fastest startup time and lowest memory usage
+          - No .NET runtime needed
+          - Smallest self-contained option (~10-15 MB)
+          - **Recommended for most users**
+
+          ## Platforms
+
+          | Platform | Architecture | Package Types |
+          |----------|--------------|---------------|
+          | Windows  | x64, ARM64   | FD, SC, AOT   |
+          | Linux    | x64, ARM64   | FD, SC, AOT   |
+          | macOS    | x64, ARM64   | FD, SC, AOT   |
+
+          ## Installation
+
+          ### Windows
+          1. Download the appropriate `.zip` file
+          2. Extract to a folder
+          3. Run `BFGDL.NET.exe` from command line
+
+          ### Linux / macOS
+          1. Download the appropriate `.tar.gz` file
+          2. Extract: `tar -xzf bfgdl-net-*.tar.gz`
+          3. Make executable (if needed): `chmod +x BFGDL.NET`
+          4. Run: `./BFGDL.NET`
+
+          ## Quick Start
+
+          ```bash
+          # Show help
+          BFGDL.NET --help
+
+          # Export latest 10 English Windows games
+          BFGDL.NET --export-installers-json=pretty --export-limit=10 -l eng -p win
+
+          # Download specific games
+          BFGDL.NET -d F15533T1L2 F7028T1L1
+          ```
+
+          ## What's Included
+
+          - Cross-platform Big Fish Games downloader
+          - GraphQL catalog integration
+          - Multi-threaded concurrent downloads
+          - Resume support for interrupted downloads
+          - Configuration file support (config.ini)
+
+          ## Requirements
+
+          - **FD builds**: .NET 10 Runtime
+          - **SC/AOT builds**: No additional requirements
+
+          ## Notes
+
+          - All builds are production-ready and fully tested
+          - Native AOT builds offer the best performance
+          - Self-contained builds are ideal for systems without .NET
+          - Framework-dependent builds are smallest but require .NET 10
+
+          ---
+
+          For documentation and source code, visit: https://github.com/Rustbeard86/BFGDL.NET
+          EOF
+          
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          cat release-notes.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: Release ${{ github.event.inputs.version || github.ref_name }}
+          body: ${{ steps.release-notes.outputs.notes }}
+          files: ./release-files/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
