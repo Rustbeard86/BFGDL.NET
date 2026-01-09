@@ -51,7 +51,8 @@ public sealed class Application(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to fetch game info for WrapID: {WrapId}", wrapId);
+                if (logger.IsEnabled(LogLevel.Error))
+                    logger.LogError(ex, "Failed to fetch game info for WrapID: {WrapId}", wrapId);
                 Console.Error.WriteLine($"Failed to fetch info for {wrapId}: {ex.Message}");
             }
 
@@ -100,7 +101,8 @@ public sealed class Application(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to download game: {GameName}", game.Name);
+                if (logger.IsEnabled(LogLevel.Error))
+                    logger.LogError(ex, "Failed to download game: {GameName}", game.Name);
                 Console.Error.WriteLine($"Failed to download {game.Name}: {ex.Message}");
             }
     }

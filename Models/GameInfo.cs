@@ -71,11 +71,6 @@ public sealed partial record WrapId
         }
     }
 
-    public bool MatchesFilter(string filter)
-    {
-        return Value.Contains(filter, StringComparison.OrdinalIgnoreCase);
-    }
-
     [GeneratedRegex(Pattern, RegexOptions.IgnoreCase, "en-US")]
     private static partial Regex MatchRegex();
 

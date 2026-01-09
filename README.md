@@ -32,6 +32,24 @@ dotnet publish -c Release -r <runtime-identifier> --self-contained
 
 The compiled executable will be in `bin/Release/net10.0/<runtime-identifier>/publish/`
 
+**Common Runtime Identifiers:**
+- Windows x64: `win-x64`
+- Windows x86: `win-x86`
+- Windows ARM64: `win-arm64`
+- Linux x64: `linux-x64`
+- Linux ARM64: `linux-arm64`
+- macOS x64: `osx-x64`
+- macOS ARM64 (Apple Silicon): `osx-arm64`
+
+```ini
+# Platform: win, mac
+platform=win
+
+# Language: eng, ger, spa, fre, ita, jap, dut, swe, dan, por
+language=eng
+
+```
+
 For Native AOT:
 ```bash
 dotnet publish -c Release -r <runtime-identifier> --self-contained -p:PublishAot=true

@@ -20,7 +20,8 @@ public sealed class DownloadService(
         var gameDirectory = Path.Combine(GamesRoot, gameInfo.SanitizedDisplayName);
         Directory.CreateDirectory(gameDirectory);
 
-        logger.LogInformation("Downloading game {GameName} to {Directory}", gameInfo.Name, gameDirectory);
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Downloading game {GameName} to {Directory}", gameInfo.Name, gameDirectory);
         Console.WriteLine(gameInfo.SanitizedDisplayName);
 
         using var semaphore = new SemaphoreSlim(options.MaxConcurrentDownloads);
@@ -84,8 +85,9 @@ public sealed class DownloadService(
         {
             var fileInfo = new FileInfo(filePath);
             startPosition = fileInfo.Length;
-            logger.LogDebug("Resuming download of {FileName} from position {Position}", segment.FileName,
-                startPosition);
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("Resuming download of {FileName} from position {Position}", segment.FileName,
+                    startPosition);
         }
 
         try
@@ -113,11 +115,13 @@ public sealed class DownloadService(
             while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
                 await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
 
-            logger.LogDebug("Completed download of {FileName}", segment.FileName);
+            if (logger.IsEnabled(LogLevel.Debug))
+                logger.LogDebug("Completed download of {FileName}", segment.FileName);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to download {FileName}", segment.FileName);
+            if (logger.IsEnabled(LogLevel.Error))
+                logger.LogError(ex, "Failed to download {FileName}", segment.FileName);
             throw;
         }
     }

@@ -48,7 +48,7 @@ public sealed partial class InstallerListExporter(
             var wrapIds = new List<string>();
             var totalPages = 0;
             var totalCount = 0;
-            var pagesParsed = 0;
+            int pagesParsed;
 
             if (logger.IsEnabled(LogLevel.Information))
                 logger.LogInformation("Enumerating catalog via GraphQL for {Platform}/{LangLabel}",

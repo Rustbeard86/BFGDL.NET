@@ -78,9 +78,4 @@ public sealed class ConfigurationLoader : IConfigurationLoader
                value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
                value.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
-
-    private static int ParseInt(string value)
-    {
-        return int.TryParse(value, out var result) ? result : 50;
-    }
 }
