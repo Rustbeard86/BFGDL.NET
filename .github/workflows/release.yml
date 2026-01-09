@@ -19,6 +19,7 @@ jobs:
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           # Windows x64 builds
@@ -150,6 +151,15 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
+
+      - name: Install cross-compilation dependencies (Linux ARM64 AOT)
+        if: matrix.rid == 'linux-arm64' && matrix.aot == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev gcc-aarch64-linux-gnu
+
+      - name: Display .NET info
+        run: dotnet --info
 
       - name: Restore dependencies
         run: dotnet restore
