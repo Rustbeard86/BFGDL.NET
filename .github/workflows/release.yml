@@ -181,6 +181,8 @@ jobs:
 
       - name: Build and Publish
         shell: bash
+        continue-on-error: true
+        id: build
         run: |
           if [ "${{ matrix.aot }}" == "true" ]; then
             if [ "${{ matrix.rid }}" == "linux-arm64" ]; then
@@ -202,14 +204,14 @@ jobs:
           fi
 
       - name: Create archive (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && steps.build.outcome == 'success'
         shell: pwsh
         run: |
           $version = "${{ github.event.inputs.version || github.ref_name }}"
           Compress-Archive -Path ./publish/* -DestinationPath "./${{ matrix.artifact-name }}-$version.zip"
 
       - name: Create archive (Unix)
-        if: runner.os != 'Windows'
+        if: runner.os != 'Windows' && steps.build.outcome == 'success'
         run: |
           version="${{ github.event.inputs.version || github.ref_name }}"
           cd publish
@@ -218,6 +220,7 @@ jobs:
           cd ..
 
       - name: Upload artifact
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
@@ -229,6 +232,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     needs: build-and-release
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -247,15 +251,43 @@ jobs:
           mkdir -p release-files
           find ./artifacts -type f \( -name "*.zip" -o -name "*.tar.gz" \) -exec cp {} ./release-files/ \;
           ls -lh ./release-files/
+          
+          # Count successful builds
+          TOTAL_ARTIFACTS=$(ls -1 release-files/ 2>/dev/null | wc -l)
+          echo "TOTAL_ARTIFACTS=$TOTAL_ARTIFACTS" >> $GITHUB_ENV
+          echo "Found $TOTAL_ARTIFACTS successful build artifacts"
 
       - name: Generate release notes
         id: release-notes
         run: |
           version="${{ github.event.inputs.version || github.ref_name }}"
+          total="${{ env.TOTAL_ARTIFACTS }}"
+          
           cat > release-notes.md << 'EOF'
           # BFGDL.NET $version
 
           Big Fish Games Downloader - Cross-platform implementation in C# with .NET 10
+
+          ## Build Status
+
+          ? **$total of 18 build configurations completed successfully**
+
+          EOF
+          
+          # List available artifacts
+          if [ -d "./release-files" ] && [ "$(ls -A ./release-files)" ]; then
+            echo "" >> release-notes.md
+            echo "### Available Downloads" >> release-notes.md
+            echo "" >> release-notes.md
+            for file in ./release-files/*; do
+              filename=$(basename "$file")
+              size=$(ls -lh "$file" | awk '{print $5}')
+              echo "- \`$filename\` ($size)" >> release-notes.md
+            done
+            echo "" >> release-notes.md
+          fi
+          
+          cat >> release-notes.md << 'EOF'
 
           ## Download Options
 
@@ -332,6 +364,7 @@ jobs:
           - Native AOT builds offer the best performance
           - Self-contained builds are ideal for systems without .NET
           - Framework-dependent builds are smallest but require .NET 10
+          - Some platform/architecture combinations may not be available if builds failed
 
           ---
 
@@ -351,5 +384,6 @@ jobs:
           files: ./release-files/*
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
