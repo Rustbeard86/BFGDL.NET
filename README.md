@@ -287,5 +287,5 @@ This project reimplements the functionality of bfg-dl in C# .NET 10.
 
 ## Acknowledgments
 
-- Original bfg-dl Python implementation by com1100 and contributors
+- Original bfg-dl Python implementation by zTG
 - bfg_wrapid_fetcher by kevinj93
