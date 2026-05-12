@@ -366,3 +366,7 @@ FodyWeavers.xsd
 /bfg_keygen_2025.12.05.rar
 /RefJS
 /bfg-dl?v4
+# Language server / build output scratch files
+*.lscache
+build.txt
+build_output.txt
