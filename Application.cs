@@ -16,6 +16,22 @@ public sealed class Application(
     {
         Console.WriteLine("Big Fish Games Downloader - .NET");
 
+        if (options.CacheCatalog)
+        {
+            var fetcher = serviceProvider.GetRequiredService<CatalogFetchService>();
+            var languages = options.AllLanguages
+                ? CatalogFetchService.SupportedLanguages
+                : (IReadOnlyList<Language>)[appConfiguration.Language];
+
+            Console.WriteLine(options.AllLanguages
+                ? $"Caching full catalog for {appConfiguration.Platform} in all {languages.Count} languages..."
+                : $"Caching full catalog for {appConfiguration.Platform} / {appConfiguration.Language}...");
+
+            await fetcher.FetchAllAsync(appConfiguration.Platform, languages, CancellationToken.None);
+            Console.WriteLine("[OK] Catalog cache complete.");
+            return;
+        }
+
         if (options.ExportInstallersJson is not null)
         {
             var jobs = options.MaxConcurrentDownloads;

@@ -10,6 +10,8 @@ public partial class GameDetailViewModel : ReactiveObject
 {
     private readonly BigFishCatalogClient _catalog;
     private readonly CatalogCache _cache;
+    private readonly ImagePreloader _preloader;
+    private readonly IDiskImageStore _diskImageStore;
 
     [Reactive] private bool _isLoading;
     [Reactive] private string _name = string.Empty;
@@ -24,10 +26,13 @@ public partial class GameDetailViewModel : ReactiveObject
     [Reactive] private CatalogGameSummary? _currentSummary;
     [Reactive] private CatalogGameDetail? _detail;
 
-    public GameDetailViewModel(BigFishCatalogClient catalog, CatalogCache cache)
+    public GameDetailViewModel(BigFishCatalogClient catalog, CatalogCache cache,
+        ImagePreloader preloader, IDiskImageStore diskImageStore)
     {
         _catalog = catalog;
         _cache = cache;
+        _preloader = preloader;
+        _diskImageStore = diskImageStore;
     }
 
     public void LoadGame(CatalogGameSummary summary)
@@ -52,7 +57,7 @@ public partial class GameDetailViewModel : ReactiveObject
         try
         {
             // Serve from disk cache if fresh
-            var cached = await _cache.TryGetDetailAsync(summary.WrapId, CancellationToken.None);
+            var cached = await _cache.TryGetDetailAsync(summary.WrapId, summary.Language, CancellationToken.None);
             if (cached is not null && CurrentSummary == summary)
             {
                 ApplyDetail(cached);
@@ -70,7 +75,14 @@ public partial class GameDetailViewModel : ReactiveObject
             // Fire-and-forget cache write
             _ = _cache.SaveDetailAsync(detail, CancellationToken.None);
         }
-        catch { /* silently ignore — placeholder values remain */ }
+        catch
+        {
+            // Network failed — try stale cache as offline fallback
+            var stale = await _cache.TryGetDetailStaleAsync(
+                summary.WrapId, summary.Language, CancellationToken.None);
+            if (stale is not null && CurrentSummary == summary)
+                ApplyDetail(stale);
+        }
         finally
         {
             IsLoading = false;
@@ -90,5 +102,23 @@ public partial class GameDetailViewModel : ReactiveObject
         BulletPoints = detail.BulletPoints;
         SystemRequirements = detail.SystemRequirements;
         PreviewVideoUrl = detail.PreviewVideoUrl;
+
+        // Preload hero + all screenshots at full resolution so lightbox opens instantly
+        var toPreload = detail.ScreenshotUrls.ToList();
+        if (!string.IsNullOrWhiteSpace(detail.HeroImageUrl))
+            toPreload.Add(detail.HeroImageUrl);
+        _preloader.Enqueue(toPreload);
+
+        // Download all images to disk in the background so subsequent loads are instant
+        _ = Task.Run(async () =>
+        {
+            var wrapId = detail.WrapId;
+            var urls = new List<string>(toPreload);
+            if (!string.IsNullOrWhiteSpace(detail.FeatureImageUrl))
+                urls.Add(detail.FeatureImageUrl);
+            foreach (var url in urls)
+                await _diskImageStore.DownloadAsync(url, wrapId, CancellationToken.None)
+                    .ConfigureAwait(false);
+        });
     }
 }

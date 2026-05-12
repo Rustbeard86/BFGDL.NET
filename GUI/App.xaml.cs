@@ -19,7 +19,7 @@ public partial class App : Application
         InitializeComponent();   // merges Dark.xaml into Application.Resources
     }
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -31,6 +31,12 @@ public partial class App : Application
         var services = new ServiceCollection();
         ConfigureServices(services);
         Services = services.BuildServiceProvider();
+
+        // Warm up disk image store — scans index.json files so disk-first loading works
+        // immediately when the first game list is rendered.
+        var diskStore = Services.GetRequiredService<IDiskImageStore>();
+        await diskStore.InitializeAsync();
+        ImageCache.DiskStore = diskStore;
 
         var mainWindow = Services.GetRequiredService<MainWindow>();
         mainWindow.Show();
@@ -60,8 +66,11 @@ public partial class App : Application
         services.AddHttpClient<IDownloadService, DownloadService>()
             .ConfigureHttpClient(c => c.Timeout = TimeSpan.FromHours(2));
         services.AddHttpClient<BigFishCatalogClient>();
+        services.AddHttpClient<DiskImageStore>();
 
         // Services
+        services.AddSingleton<IDiskImageStore, DiskImageStore>();
+        services.AddSingleton<ImagePreloader>();
         services.AddSingleton<CatalogCache>();
         services.AddTransient<InstallerWrapIdFetcher>();
 

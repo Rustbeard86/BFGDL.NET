@@ -32,6 +32,8 @@ namespace BFGDL.NET.Models;
 [JsonSerializable(typeof(CachedPageData))]
 [JsonSerializable(typeof(List<CatalogGameSummary>))]
 [JsonSerializable(typeof(List<string>))]
+// DiskImageStore image index (URL → local filename)
+[JsonSerializable(typeof(Dictionary<string, string>))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext
 {
 }

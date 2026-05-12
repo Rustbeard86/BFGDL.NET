@@ -9,6 +9,12 @@ public sealed record CommandLineOptions
     public bool Download { get; init; }
     public bool FetchFromInstallers { get; init; }
 
+    /// <summary>Fetch all catalog pages + game details + images and store them to disk.</summary>
+    public bool CacheCatalog { get; init; }
+
+    /// <summary>When combined with --cache-catalog, fetches all 10 supported languages.</summary>
+    public bool AllLanguages { get; init; }
+
     public string? ExportInstallersJson
     {
         get;
@@ -74,6 +80,8 @@ public sealed record CommandLineOptions
         var wrapIds = new List<string>();
         var download = false;
         var fetchFromInstallers = false;
+        var cacheCatalog = false;
+        var allLanguages = false;
         var showHelp = false;
         var showVersion = false;
         var maxConcurrent = 8;
@@ -103,6 +111,14 @@ public sealed record CommandLineOptions
 
                 case "-e" or "--extract":
                     fetchFromInstallers = true;
+                    break;
+
+                case "-cc" or "--cache-catalog":
+                    cacheCatalog = true;
+                    break;
+
+                case "-al" or "--all-languages":
+                    allLanguages = true;
                     break;
 
                 case "-j" or "--jobs":
@@ -188,6 +204,8 @@ public sealed record CommandLineOptions
             ShowVersion = showVersion,
             Download = download,
             FetchFromInstallers = fetchFromInstallers,
+            CacheCatalog = cacheCatalog,
+            AllLanguages = allLanguages,
             MaxConcurrentDownloads = maxConcurrent,
             ConfigFilePath = configFilePath,
             Platform = platform,
@@ -244,6 +262,8 @@ public sealed record CommandLineOptions
                             -c, --config FILE                Load configuration from FILE (default: config.ini)
                             -p, --platform PLATFORM          Set platform: win, mac (overrides config)
                             -l, --language LANG              Set language: eng, ger, spa, fre, ita, jap, dut, swe, dan, por
+                            -cc, --cache-catalog             Fetch all catalog pages, game details, and images to disk
+                            -al, --all-languages             Used with --cache-catalog: fetch all 10 supported languages
                             --export-installers-json=pretty|min  Export full (non-demo) installer segment lists grouped by WrapID language (L#)
                             --export-limit=N                 Limit number of games exported (for testing)
 
@@ -256,6 +276,12 @@ public sealed record CommandLineOptions
 
                             Download games using installers in current directory:
                               BFGDL.NET -e -d
+
+                            Cache entire catalog to disk (English only):
+                              BFGDL.NET --cache-catalog
+
+                            Cache entire catalog to disk in all 10 languages:
+                              BFGDL.NET --cache-catalog --all-languages
 
                             Export Windows installer lists to JSON (pretty):
                               BFGDL.NET --export-installers-json=pretty -p win

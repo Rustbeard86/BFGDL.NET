@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using BFGDL.NET.Services;
 
 namespace BFGDL.NET.Views;
 
@@ -24,21 +24,10 @@ public partial class LightboxWindow : Window
     {
         if (_urls.Count == 0) { Close(); return; }
 
-        MainImage.Source = null;
         var url = _urls[_index];
-        if (!string.IsNullOrWhiteSpace(url))
-        {
-            try
-            {
-                var bmp = new BitmapImage();
-                bmp.BeginInit();
-                bmp.UriSource = new Uri(url, UriKind.Absolute);
-                bmp.CacheOption = BitmapCacheOption.Default;
-                bmp.EndInit();
-                MainImage.Source = bmp;
-            }
-            catch { }
-        }
+        // Use shared ImageCache — if the thumbnail was already downloaded for the
+        // gallery strip, the full-res load is the same BitmapImage (no second download).
+        MainImage.Source = string.IsNullOrWhiteSpace(url) ? null : ImageCache.GetOrCreate(url);
 
         CounterText.Text = _urls.Count > 1 ? $"{_index + 1} / {_urls.Count}" : string.Empty;
         PrevButton.Visibility = NextButton.Visibility =

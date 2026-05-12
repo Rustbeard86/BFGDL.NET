@@ -22,8 +22,11 @@ public sealed class CatalogCache(IAppPaths paths)
 
     private static readonly char[] InvalidChars = Path.GetInvalidFileNameChars();
 
-    private string PageDir   => Path.Combine(paths.CacheDirectory, "pages");
-    private string DetailDir => Path.Combine(paths.CacheDirectory, "details");
+    // cache/catalog/ — paginated list snapshots
+    private string CatalogDir => Path.Combine(paths.CacheDirectory, "catalog");
+
+    // cache/games/{sku}/ — per-game detail + images
+    internal string GamesDir => Path.Combine(paths.CacheDirectory, "games");
 
     // ── Pages ─────────────────────────────────────────────────────────────────
 
@@ -35,6 +38,17 @@ public sealed class CatalogCache(IAppPaths paths)
         return TryReadAsync(file, PageTtl, AppJsonSerializerContext.Default.CachedPageData, ct);
     }
 
+    /// <summary>
+    /// Returns cached page data even if stale — used as offline fallback when the network is unavailable.
+    /// </summary>
+    public Task<CachedPageData?> TryGetPageStaleAsync(
+        Platform platform, Language language, int page, int pageSize,
+        CancellationToken ct = default)
+    {
+        var file = PageFile(platform, language, page, pageSize);
+        return TryReadIgnoreTtlAsync(file, AppJsonSerializerContext.Default.CachedPageData, ct);
+    }
+
     public Task SavePageAsync(
         Platform platform, Language language, int page, int pageSize,
         CachedPageData data, CancellationToken ct = default)
@@ -44,21 +58,35 @@ public sealed class CatalogCache(IAppPaths paths)
     }
 
     private string PageFile(Platform platform, Language language, int page, int pageSize)
-        => Path.Combine(PageDir, $"{platform}_{language}_{page}_{pageSize}.json");
+        => Path.Combine(CatalogDir, $"{platform}_{language}_{page}_{pageSize}.json");
 
     // ── Details ───────────────────────────────────────────────────────────────
 
-    public Task<CatalogGameDetail?> TryGetDetailAsync(string sku, CancellationToken ct = default)
+    public Task<CatalogGameDetail?> TryGetDetailAsync(
+        string sku, Language language, CancellationToken ct = default)
     {
-        var file = Path.Combine(DetailDir, Sanitize(sku) + ".json");
+        var file = DetailFile(sku, language);
         return TryReadAsync(file, DetailTtl, AppJsonSerializerContext.Default.CatalogGameDetail, ct);
+    }
+
+    /// <summary>
+    /// Returns detail data even if stale — used as offline fallback when the network is unavailable.
+    /// </summary>
+    public Task<CatalogGameDetail?> TryGetDetailStaleAsync(
+        string sku, Language language, CancellationToken ct = default)
+    {
+        var file = DetailFile(sku, language);
+        return TryReadIgnoreTtlAsync(file, AppJsonSerializerContext.Default.CatalogGameDetail, ct);
     }
 
     public Task SaveDetailAsync(CatalogGameDetail detail, CancellationToken ct = default)
     {
-        var file = Path.Combine(DetailDir, Sanitize(detail.WrapId) + ".json");
+        var file = DetailFile(detail.WrapId, detail.Language);
         return WriteAsync(file, detail, AppJsonSerializerContext.Default.CatalogGameDetail, ct);
     }
+
+    private string DetailFile(string sku, Language language)
+        => Path.Combine(GamesDir, Sanitize(sku), $"detail_{language}.json");
 
     // ── Internals ─────────────────────────────────────────────────────────────
 
@@ -80,6 +108,18 @@ public sealed class CatalogCache(IAppPaths paths)
             TryDelete(path);
             return default;
         }
+    }
+
+    private static async Task<T?> TryReadIgnoreTtlAsync<T>(
+        string path, JsonTypeInfo<T> typeInfo, CancellationToken ct)
+    {
+        if (!File.Exists(path)) return default;
+        try
+        {
+            await using var s = File.OpenRead(path);
+            return await JsonSerializer.DeserializeAsync(s, typeInfo, ct).ConfigureAwait(false);
+        }
+        catch { return default; }
     }
 
     private static async Task WriteAsync<T>(

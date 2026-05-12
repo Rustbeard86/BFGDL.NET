@@ -20,5 +20,8 @@ public sealed class GuiAppPaths : IAppPaths
 
     public string GamesDirectory => Path.Combine(OutputRoot, "games");
     public string InstallersDirectory => Path.Combine(OutputRoot, "installers");
-    public string CacheDirectory => Path.Combine(OutputRoot, "cache");
+
+    // Cache lives adjacent to the binary so that publish cache backup/restore works
+    // regardless of where the user's My Documents folder is.
+    public string CacheDirectory => Path.Combine(AppContext.BaseDirectory, "cache");
 }

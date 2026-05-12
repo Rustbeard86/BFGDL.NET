@@ -99,7 +99,7 @@ internal static class Program
                 builder.SetMinimumLevel(LogLevel.Debug);
         });
 
-        // HTTP Client
+        // HTTP
         services.AddHttpClient<IBigFishGamesClient, BigFishGamesClient>()
             .ConfigureHttpClient(client =>
             {
@@ -110,6 +110,8 @@ internal static class Program
         services.AddHttpClient<IDownloadService, DownloadService>()
             .ConfigureHttpClient(client => { client.Timeout = TimeSpan.FromHours(2); });
 
+        services.AddHttpClient<DiskImageStore>();
+
         // HTTP
         services.AddHttpClient();
 
@@ -117,8 +119,11 @@ internal static class Program
         services.AddSingleton<IAppPaths, DefaultAppPaths>();
 
         // Services
+        services.AddSingleton<IDiskImageStore, DiskImageStore>();
+        services.AddTransient<CatalogFetchService>();
         services.AddTransient<InstallerWrapIdFetcher>();
         services.AddTransient<BigFishCatalogClient>();
+        services.AddSingleton<CatalogCache>();
         services.AddTransient<InstallerListExporter>();
         services.AddTransient<Application>();
     }

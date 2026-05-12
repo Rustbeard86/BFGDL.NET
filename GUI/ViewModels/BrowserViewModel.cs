@@ -14,6 +14,8 @@ public partial class BrowserViewModel : ReactiveObject
 {
     private readonly BigFishCatalogClient _catalog;
     private readonly CatalogCache _cache;
+    private readonly ImagePreloader _preloader;
+    private readonly IDiskImageStore _diskImageStore;
     private readonly SourceList<CatalogGameSummary> _games = new();
     private readonly ReadOnlyObservableCollection<CatalogGameSummary> _filteredGames;
 
@@ -44,10 +46,14 @@ public partial class BrowserViewModel : ReactiveObject
     public GameDetailViewModel Detail { get; }
     public DownloadQueueViewModel DownloadQueue { get; }
 
-    public BrowserViewModel(BigFishCatalogClient catalog, CatalogCache cache, GameDetailViewModel detail, DownloadQueueViewModel downloadQueue)
+    public BrowserViewModel(BigFishCatalogClient catalog, CatalogCache cache,
+        ImagePreloader preloader, IDiskImageStore diskImageStore,
+        GameDetailViewModel detail, DownloadQueueViewModel downloadQueue)
     {
         _catalog = catalog;
         _cache = cache;
+        _preloader = preloader;
+        _diskImageStore = diskImageStore;
         Detail = detail;
         DownloadQueue = downloadQueue;
 
@@ -115,20 +121,37 @@ public partial class BrowserViewModel : ReactiveObject
     {
         _games.Clear();
         _currentPage = 1;
-        await LoadPageAsync(1, ct);
+        await LoadPageAsync(1, ct, bypassCache: true);
     }
 
     private async Task LoadNextPageAsync(CancellationToken ct)
     {
-        await LoadPageAsync(_currentPage + 1, ct);
+        await LoadPageAsync(_currentPage + 1, ct, bypassCache: false);
     }
 
-    private async Task LoadPageAsync(int page, CancellationToken ct)
+    private async Task LoadPageAsync(int page, CancellationToken ct, bool bypassCache = false)
     {
         IsLoading = true;
         StatusText = $"Loading page {page}…";
         try
         {
+            if (!bypassCache)
+            {
+                var hit = await _cache.TryGetPageAsync(SelectedPlatform, SelectedLanguage, page, 48, ct);
+                if (hit is not null)
+                {
+                    _games.AddRange(hit.Items);
+                    _currentPage = page;
+                    TotalPages = hit.TotalPages;
+                    TotalCount = hit.TotalCount;
+                    StatusText = $"{_games.Count} of {hit.TotalCount} games";
+                    _preloader.Enqueue(hit.Items.Select(g => g.ThumbnailUrl), decodeWidth: 80);
+                    EnqueueThumbnailDownloads(hit.Items);
+                    _ = PreloadPagesAheadAsync(page, CancellationToken.None);
+                    return;
+                }
+            }
+
             var languageId = LanguageIdForEnum(SelectedLanguage);
             var result = await _catalog.GetCatalogPageWithSummaryAsync(
                 SelectedPlatform, SelectedLanguage, languageId, page, 48, ct);
@@ -138,16 +161,91 @@ public partial class BrowserViewModel : ReactiveObject
             TotalPages = result.TotalPages;
             TotalCount = result.TotalCount;
             StatusText = $"{_games.Count} of {result.TotalCount} games";
+
+            _ = _cache.SavePageAsync(SelectedPlatform, SelectedLanguage, page, 48,
+                new CachedPageData(result.Items, result.TotalCount, result.TotalPages),
+                CancellationToken.None);
+            _preloader.Enqueue(result.Items.Select(g => g.ThumbnailUrl), decodeWidth: 80);
+            EnqueueThumbnailDownloads(result.Items);
+            _ = PreloadPagesAheadAsync(page, CancellationToken.None);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            StatusText = $"Error: {ex.Message}";
+            // Network failed — try stale cache as offline fallback
+            var stale = await _cache.TryGetPageStaleAsync(
+                SelectedPlatform, SelectedLanguage, page, 48, CancellationToken.None);
+            if (stale is not null)
+            {
+                _games.AddRange(stale.Items);
+                _currentPage = page;
+                TotalPages = stale.TotalPages;
+                TotalCount = stale.TotalCount;
+                StatusText = $"Offline — {_games.Count} of {stale.TotalCount} games (cached)";
+                _preloader.Enqueue(stale.Items.Select(g => g.ThumbnailUrl), decodeWidth: 80);
+            }
+            else
+            {
+                StatusText = $"Error: {ex.Message}";
+            }
         }
         finally
         {
             IsLoading = false;
         }
+    }
+
+    /// <summary>
+    /// Silently fetches and caches up to 2 pages ahead without touching UI state.
+    /// Thumbnails for those pages are enqueued for background image preloading.
+    /// </summary>
+    private async Task PreloadPagesAheadAsync(int fromPage, CancellationToken ct)
+    {
+        for (int ahead = 1; ahead <= 2; ahead++)
+        {
+            var nextPage = fromPage + ahead;
+            if (TotalPages > 0 && nextPage > TotalPages) break;
+
+            var hit = await _cache.TryGetPageAsync(SelectedPlatform, SelectedLanguage, nextPage, 48, ct);
+            if (hit is not null)
+            {
+                _preloader.Enqueue(hit.Items.Select(g => g.ThumbnailUrl), decodeWidth: 80);
+                continue;
+            }
+
+            try
+            {
+                var languageId = LanguageIdForEnum(SelectedLanguage);
+                var result = await _catalog.GetCatalogPageWithSummaryAsync(
+                    SelectedPlatform, SelectedLanguage, languageId, nextPage, 48, ct);
+
+                _ = _cache.SavePageAsync(SelectedPlatform, SelectedLanguage, nextPage, 48,
+                    new CachedPageData(result.Items, result.TotalCount, result.TotalPages),
+                    CancellationToken.None);
+                _preloader.Enqueue(result.Items.Select(g => g.ThumbnailUrl), decodeWidth: 80);
+            }
+            catch { /* preload failures are silent */ }
+
+            // Yield between fetches to be polite to the server
+            await Task.Delay(600, ct);
+        }
+    }
+
+    /// <summary>
+    /// Fire-and-forget: downloads all thumbnail images for a page to disk so subsequent
+    /// loads are instant (served from <see cref="DiskImageStore"/> instead of HTTP).
+    /// </summary>
+    private void EnqueueThumbnailDownloads(IEnumerable<CatalogGameSummary> items)
+    {
+        var list = items.ToList();
+        _ = Task.Run(async () =>
+        {
+            foreach (var game in list)
+                if (!string.IsNullOrWhiteSpace(game.ThumbnailUrl))
+                    await _diskImageStore.DownloadAsync(
+                        game.ThumbnailUrl, game.WrapId, CancellationToken.None)
+                        .ConfigureAwait(false);
+        });
     }
 
     private static string LanguageIdForEnum(Language lang) => lang switch
