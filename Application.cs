@@ -97,7 +97,7 @@ public sealed class Application(
         foreach (var game in games)
             try
             {
-                await downloadService.DownloadGameAsync(game);
+                await downloadService.DownloadGameAsync(game, progress: null);
             }
             catch (Exception ex)
             {

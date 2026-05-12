@@ -113,6 +113,9 @@ internal static class Program
         // HTTP
         services.AddHttpClient();
 
+        // Paths
+        services.AddSingleton<IAppPaths, DefaultAppPaths>();
+
         // Services
         services.AddTransient<InstallerWrapIdFetcher>();
         services.AddTransient<BigFishCatalogClient>();
