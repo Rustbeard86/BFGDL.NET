@@ -1,0 +1,74 @@
+<UserControl x:Class="BFGDL.NET.Views.DownloadDrawer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="200" d:DesignWidth="1200">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  MaxHeight="230"
+                  Background="{StaticResource SurfaceBrush}">
+        <ItemsControl ItemsSource="{Binding Items}" Margin="8,4">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="0,4"
+                            Padding="10,8"
+                            Background="{StaticResource SurfaceHighBrush}"
+                            CornerRadius="4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="200" />
+                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Game name + segments -->
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                                <TextBlock Text="{Binding GameName}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding SegmentsText}"
+                                           FontSize="11"
+                                           Foreground="{StaticResource TextSecondaryBrush}" />
+                            </StackPanel>
+
+                            <!-- Progress bar -->
+                            <ProgressBar Grid.Column="1"
+                                         Value="{Binding Progress}"
+                                         Maximum="1"
+                                         VerticalAlignment="Center" />
+
+                            <!-- Status -->
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding StatusText}"
+                                       VerticalAlignment="Center"
+                                       Margin="8,0"
+                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                       FontSize="11" />
+
+                            <!-- Cancel -->
+                            <Button Grid.Column="3"
+                                    Content="Cancel"
+                                    Command="{Binding CancelCommand}"
+                                    Margin="4,0"
+                                    Padding="8,4"
+                                    FontSize="11"
+                                    Background="{StaticResource SurfaceBrush}" />
+
+                            <!-- Dismiss -->
+                            <Button Grid.Column="4"
+                                    Content="✕"
+                                    Command="{Binding DismissCommand}"
+                                    Padding="6,4"
+                                    FontSize="11"
+                                    Background="Transparent" />
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </ScrollViewer>
+</UserControl>

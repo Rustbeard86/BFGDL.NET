@@ -1,0 +1,166 @@
+<Window x:Class="BFGDL.NET.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:BFGDL.NET.ViewModels"
+        xmlns:views="clr-namespace:BFGDL.NET.Views"
+        mc:Ignorable="d"
+        Title="Big Fish Games Downloader"
+        Width="1280" Height="780"
+        MinWidth="900" MinHeight="600">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Toolbar -->
+            <RowDefinition Height="48" />
+            <!-- Main content -->
+            <RowDefinition Height="*" />
+            <!-- Download drawer -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ── Toolbar ── -->
+        <Border Grid.Row="0"
+                Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="12,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Platform -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Platform " VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <ComboBox Width="110"
+                              ItemsSource="{Binding Platforms}"
+                              SelectedItem="{Binding SelectedPlatform}"
+                              VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Language -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Language " VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <ComboBox Width="110"
+                              ItemsSource="{Binding Languages}"
+                              SelectedItem="{Binding SelectedLanguage}"
+                              VerticalAlignment="Center" />
+                </StackPanel>
+
+                <!-- Genre -->
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Genre " VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <ComboBox Width="160"
+                              ItemsSource="{Binding AllGenres}"
+                              SelectedItem="{Binding SelectedGenre}"
+                              VerticalAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Search -->
+                <TextBox Grid.Column="6"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         Tag="Search games…"
+                         VerticalAlignment="Center" />
+
+                <!-- Refresh + status -->
+                <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Button Content="Refresh"
+                            Command="{Binding RefreshCommand}"
+                            Margin="0,0,12,0" />
+                    <Button Content="Load More"
+                            Command="{Binding LoadNextPageCommand}" />
+                    <TextBlock Text="{Binding StatusText}"
+                               Margin="16,0,0,0"
+                               VerticalAlignment="Center"
+                               Foreground="{StaticResource TextSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Master / Detail ── -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="360" MinWidth="240" MaxWidth="600" />
+                <ColumnDefinition Width="4" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Game List -->
+            <Border Grid.Column="0"
+                    Background="{StaticResource SurfaceBrush}"
+                    BorderBrush="{StaticResource BorderBrush}"
+                    BorderThickness="0,0,1,0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <!-- Loading overlay -->
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <ListBox Grid.Row="0"
+                             ItemsSource="{Binding FilteredGames}"
+                             SelectedItem="{Binding SelectedGame}"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <views:GameListItemView />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <Border Grid.Row="1"
+                            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"
+                            Background="{StaticResource SurfaceBrush}"
+                            Padding="8">
+                        <TextBlock Text="Loading…"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondaryBrush}" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1"
+                          Width="4"
+                          HorizontalAlignment="Stretch"
+                          Background="{StaticResource BorderBrush}" />
+
+            <!-- Detail panel -->
+            <ContentControl Grid.Column="2"
+                            Content="{Binding Detail}">
+                <ContentControl.ContentTemplate>
+                    <DataTemplate>
+                        <views:GameDetailView />
+                    </DataTemplate>
+                </ContentControl.ContentTemplate>
+            </ContentControl>
+        </Grid>
+
+        <!-- ── Download Drawer ── -->
+        <Expander Grid.Row="2"
+                  Header="{Binding DownloadQueue.SummaryText}"
+                  IsExpanded="{Binding DownloadQueue.IsDrawerExpanded}"
+                  DataContext="{Binding}"
+                  MaxHeight="260">
+            <views:DownloadDrawer DataContext="{Binding DownloadQueue}" />
+        </Expander>
+    </Grid>
+</Window>
