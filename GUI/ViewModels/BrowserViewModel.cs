@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Reactive.Linq;
@@ -18,6 +19,9 @@ public partial class BrowserViewModel : ReactiveObject
     private readonly IDiskImageStore _diskImageStore;
     private readonly SourceList<CatalogGameSummary> _games = new();
     private readonly ReadOnlyObservableCollection<CatalogGameSummary> _filteredGames;
+    // Tracks WrapIds already in _games to prevent duplicates during incremental loads
+    private readonly ConcurrentDictionary<string, byte> _loadedWrapIds =
+        new(StringComparer.OrdinalIgnoreCase);
 
     [Reactive] private string _searchText = string.Empty;
     [Reactive] private Platform _selectedPlatform = Platform.Windows;
@@ -29,6 +33,7 @@ public partial class BrowserViewModel : ReactiveObject
     [Reactive] private int _totalPages;
     [Reactive] private int _totalCount;
     [Reactive] private string _statusText = string.Empty;
+    [Reactive] private bool _allCachedPagesLoaded;
 
     public ReadOnlyObservableCollection<CatalogGameSummary> FilteredGames => _filteredGames;
 
@@ -92,11 +97,20 @@ public partial class BrowserViewModel : ReactiveObject
             .Subscribe(g => Detail.LoadGame(g));
 
         var canLoadNext = this.WhenAnyValue(
-            x => x.CurrentPage, x => x.TotalPages, x => x.IsLoading,
-            (cur, total, loading) => !loading && cur < total);
+            x => x.CurrentPage, x => x.TotalPages, x => x.IsLoading, x => x.AllCachedPagesLoaded,
+            (cur, total, loading, allLoaded) => !loading && !allLoaded && cur < total);
 
         LoadNextPageCommand = ReactiveCommand.CreateFromTask(LoadNextPageAsync, canLoadNext);
         RefreshCommand = ReactiveCommand.CreateFromTask(RefreshAsync);
+
+        // When any filter becomes active, load all cached pages into memory
+        this.WhenAnyValue(
+                x => x.SearchText,
+                x => x.SelectedGenre,
+                (s, g) => !string.IsNullOrWhiteSpace(s) || !string.IsNullOrWhiteSpace(g))
+            .DistinctUntilChanged()
+            .Where(hasFilter => hasFilter)
+            .Subscribe(hasFilter => _ = LoadAllCachedPagesAsync(CancellationToken.None));
 
         // Initial load
         RefreshCommand.Execute().Subscribe();
@@ -120,6 +134,8 @@ public partial class BrowserViewModel : ReactiveObject
     private async Task RefreshAsync(CancellationToken ct)
     {
         _games.Clear();
+        _loadedWrapIds.Clear();
+        AllCachedPagesLoaded = false;
         _currentPage = 1;
         await LoadPageAsync(1, ct, bypassCache: true);
     }
@@ -140,7 +156,7 @@ public partial class BrowserViewModel : ReactiveObject
                 var hit = await _cache.TryGetPageAsync(SelectedPlatform, SelectedLanguage, page, 48, ct);
                 if (hit is not null)
                 {
-                    _games.AddRange(hit.Items);
+                    AddGamesDeduped(hit.Items);
                     _currentPage = page;
                     TotalPages = hit.TotalPages;
                     TotalCount = hit.TotalCount;
@@ -156,7 +172,7 @@ public partial class BrowserViewModel : ReactiveObject
             var result = await _catalog.GetCatalogPageWithSummaryAsync(
                 SelectedPlatform, SelectedLanguage, languageId, page, 48, ct);
 
-            _games.AddRange(result.Items);
+            AddGamesDeduped(result.Items);
             _currentPage = page;
             TotalPages = result.TotalPages;
             TotalCount = result.TotalCount;
@@ -177,7 +193,7 @@ public partial class BrowserViewModel : ReactiveObject
                 SelectedPlatform, SelectedLanguage, page, 48, CancellationToken.None);
             if (stale is not null)
             {
-                _games.AddRange(stale.Items);
+                AddGamesDeduped(stale.Items);
                 _currentPage = page;
                 TotalPages = stale.TotalPages;
                 TotalCount = stale.TotalCount;
@@ -235,6 +251,49 @@ public partial class BrowserViewModel : ReactiveObject
     /// Fire-and-forget: downloads all thumbnail images for a page to disk so subsequent
     /// loads are instant (served from <see cref="DiskImageStore"/> instead of HTTP).
     /// </summary>
+    private void AddGamesDeduped(IEnumerable<CatalogGameSummary> items)
+    {
+        var toAdd = items.Where(g => _loadedWrapIds.TryAdd(g.WrapId, 0)).ToList();
+        if (toAdd.Count > 0)
+            _games.AddRange(toAdd);
+    }
+
+    /// <summary>
+    /// Loads all cached catalog pages from disk into <see cref="_games"/> so that
+    /// search and genre filters operate over the entire local catalog, not just the
+    /// pages already paged into the view.
+    /// </summary>
+    private async Task LoadAllCachedPagesAsync(CancellationToken ct)
+    {
+        if (AllCachedPagesLoaded) return;
+
+        IsLoading = true;
+        var pagesLoaded = 0;
+        try
+        {
+            await foreach (var page in _cache.EnumerateAllCachedPagesAsync(
+                SelectedPlatform, SelectedLanguage, 48, ct))
+            {
+                AddGamesDeduped(page.Items);
+                pagesLoaded++;
+                StatusText = $"Loading catalog for search… ({_games.Count} games from {pagesLoaded} pages)";
+            }
+
+            AllCachedPagesLoaded = true;
+            StatusText = $"{_games.Count} of {TotalCount} games (full catalog loaded)";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            StatusText = $"Search load error: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
     private void EnqueueThumbnailDownloads(IEnumerable<CatalogGameSummary> items)
     {
         var list = items.ToList();

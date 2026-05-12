@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using BFGDL.NET.Models;
@@ -59,6 +60,53 @@ public sealed class CatalogCache(IAppPaths paths)
 
     private string PageFile(Platform platform, Language language, int page, int pageSize)
         => Path.Combine(CatalogDir, $"{platform}_{language}_{page}_{pageSize}.json");
+
+    // ── Full-catalog enumeration ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Yields every cached page for the given platform/language, ordered by page number.
+    /// TTL is intentionally ignored so all locally stored data is available for search.
+    /// </summary>
+    public async IAsyncEnumerable<CachedPageData> EnumerateAllCachedPagesAsync(
+        Platform platform, Language language, int pageSize,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var dir = CatalogDir;
+        if (!Directory.Exists(dir)) yield break;
+
+        var prefix = $"{platform}_{language}_";
+        var suffix = $"_{pageSize}.json";
+
+        var files = Directory.GetFiles(dir, $"{prefix}*{suffix}")
+            .Select(f => (file: f, page: ParsePageNumber(Path.GetFileNameWithoutExtension(f), prefix, pageSize)))
+            .Where(x => x.page > 0)
+            .OrderBy(x => x.page)
+            .Select(x => x.file);
+
+        foreach (var file in files)
+        {
+            ct.ThrowIfCancellationRequested();
+            CachedPageData? data = null;
+            try
+            {
+                await using var s = File.OpenRead(file);
+                data = await JsonSerializer.DeserializeAsync(
+                    s, AppJsonSerializerContext.Default.CachedPageData, ct).ConfigureAwait(false);
+            }
+            catch { }
+            if (data is not null) yield return data;
+        }
+    }
+
+    private static int ParsePageNumber(string nameWithoutExt, string prefix, int pageSize)
+    {
+        if (!nameWithoutExt.StartsWith(prefix, StringComparison.Ordinal)) return 0;
+        var inner = nameWithoutExt[prefix.Length..];
+        var pageSuffix = $"_{pageSize}";
+        if (!inner.EndsWith(pageSuffix, StringComparison.Ordinal)) return 0;
+        var pageStr = inner[..^pageSuffix.Length];
+        return int.TryParse(pageStr, out var n) ? n : 0;
+    }
 
     // ── Details ───────────────────────────────────────────────────────────────
 
