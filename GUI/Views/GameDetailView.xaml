@@ -1,0 +1,191 @@
+<UserControl x:Class="BFGDL.NET.Views.GameDetailView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="700" d:DesignWidth="800">
+
+    <Grid Background="{StaticResource BackgroundBrush}">
+        <!-- Empty state -->
+        <TextBlock Text="Select a game to see details"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   Foreground="{StaticResource TextSecondaryBrush}"
+                   FontSize="16">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Name}" Value="">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer.Style>
+                <Style TargetType="ScrollViewer">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Name}" Value="">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ScrollViewer.Style>
+
+            <StackPanel>
+                <!-- Hero Banner -->
+                <Border Height="230" Background="{StaticResource SurfaceBrush}" ClipToBounds="True">
+                    <Grid>
+                        <Image Stretch="UniformToFill"
+                               Source="{Binding HeroImageUrl, Converter={StaticResource StringToImageSourceConverter}}" />
+
+                        <!-- Loading overlay -->
+                        <Border Background="#AA000000"
+                                Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Text="Loading…"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="White"
+                                       FontSize="16" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <StackPanel Margin="20,16">
+                    <!-- Title + meta row -->
+                    <TextBlock Text="{Binding Name}"
+                               FontSize="22"
+                               FontWeight="Bold" />
+
+                    <!-- Genre pills + Queue Download -->
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <ItemsControl Grid.Column="0"
+                                      ItemsSource="{Binding CurrentSummary.Genres}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Style="{StaticResource GenrePill}">
+                                        <TextBlock Text="{Binding}"
+                                                   FontSize="11"
+                                                   Foreground="{StaticResource TextSecondaryBrush}" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <Button Grid.Column="1"
+                                Content="+ Queue Download"
+                                x:Name="QueueDownloadButton" />
+                    </Grid>
+
+                    <!-- Short description / Full description -->
+                    <TextBlock Text="{Binding ShortDescription}"
+                               TextWrapping="Wrap"
+                               Margin="0,12,0,0"
+                               Foreground="{StaticResource TextSecondaryBrush}" />
+
+                    <!-- Separator -->
+                    <Separator Margin="0,12" />
+
+                    <!-- Bullet points -->
+                    <ItemsControl ItemsSource="{Binding BulletPoints}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,2">
+                                    <TextBlock Text="• " Foreground="{StaticResource AccentBrush}" />
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Screenshot gallery -->
+                    <TextBlock Text="Screenshots"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Margin="0,16,0,8"
+                               Visibility="{Binding ScreenshotUrls.Count, Converter={StaticResource NonZeroToVisibilityConverter}}" />
+
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Visibility="{Binding ScreenshotUrls.Count, Converter={StaticResource NonZeroToVisibilityConverter}}">
+                        <ItemsControl ItemsSource="{Binding ScreenshotUrls}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource ImageButton}" Click="Screenshot_Click">
+                                        <Border Margin="0,0,8,0"
+                                                CornerRadius="4"
+                                                ClipToBounds="True"
+                                                Width="200" Height="130"
+                                                Background="{StaticResource SurfaceBrush}">
+                                            <Image Stretch="UniformToFill"
+                                                   Source="{Binding Converter={StaticResource StringToImageSourceConverter}, ConverterParameter=200}" />
+                                        </Border>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- System Requirements -->
+                    <TextBlock Text="System Requirements"
+                               FontSize="15"
+                               FontWeight="SemiBold"
+                               Margin="0,16,0,8"
+                               Visibility="{Binding SystemRequirements, Converter={StaticResource NotNullToVisibilityConverter}}" />
+
+                    <Grid Visibility="{Binding SystemRequirements, Converter={StaticResource NotNullToVisibilityConverter}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="16" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="OS" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding SystemRequirements.Os}" TextWrapping="Wrap" Margin="0,2" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="CPU" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SystemRequirements.Cpu}" Margin="0,2" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="RAM" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding SystemRequirements.Ram}" Margin="0,2" />
+
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="DirectX" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2" />
+                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding SystemRequirements.DirectX}" Margin="0,2" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Disk" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2" />
+                        <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding SystemRequirements.HardDrive}" Margin="0,2" />
+                    </Grid>
+
+                    <Border Height="24" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>
