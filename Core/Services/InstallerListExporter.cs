@@ -11,6 +11,7 @@ public sealed partial class InstallerListExporter(
     AppConfiguration configuration,
     IBigFishGamesClient apiClient,
     BigFishCatalogClient catalogClient,
+    IAppPaths appPaths,
     ILogger<InstallerListExporter> logger)
 {
     private const int PageSize = 250;
@@ -26,7 +27,7 @@ public sealed partial class InstallerListExporter(
         var pretty = exportFormat.Equals("pretty", StringComparison.OrdinalIgnoreCase);
         var jsonOptions = new JsonWriterOptions { Indented = pretty, SkipValidation = false };
 
-        var outputRoot = AppContext.BaseDirectory;
+        var outputRoot = appPaths.OutputRoot;
 
         var pagesParsedByL = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var wrapIdsFoundByL = new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase);

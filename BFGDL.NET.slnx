@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="BFGDL.NET.csproj" />
+  <Project Path="Core\BFGDL.NET.Core.csproj" />
+  <Project Path="GUI\BFGDL.NET.GUI.csproj" />
 </Solution>

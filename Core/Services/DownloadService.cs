@@ -8,21 +8,22 @@ namespace BFGDL.NET.Services;
 public sealed class DownloadService(
     HttpClient httpClient,
     DownloadOptions options,
+    IAppPaths appPaths,
     ILogger<DownloadService> logger) : IDownloadService
 {
-    private static readonly string AppOutputRoot = AppContext.BaseDirectory;
-    private static readonly string GamesRoot = Path.Combine(AppOutputRoot, "games");
-
-    public async Task DownloadGameAsync(GameInfo gameInfo, CancellationToken cancellationToken = default)
+    public async Task DownloadGameAsync(GameInfo gameInfo, IProgress<DownloadSegmentProgress>? progress = null, CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(GamesRoot);
+        var gamesRoot = appPaths.GamesDirectory;
+        Directory.CreateDirectory(gamesRoot);
 
-        var gameDirectory = Path.Combine(GamesRoot, gameInfo.SanitizedDisplayName);
+        var gameDirectory = Path.Combine(gamesRoot, gameInfo.SanitizedDisplayName);
         Directory.CreateDirectory(gameDirectory);
 
         if (logger.IsEnabled(LogLevel.Information))
             logger.LogInformation("Downloading game {GameName} to {Directory}", gameInfo.Name, gameDirectory);
-        Console.WriteLine(gameInfo.SanitizedDisplayName);
+
+        var totalSegments = gameInfo.Segments.Count;
+        var completedSegments = 0;
 
         using var semaphore = new SemaphoreSlim(options.MaxConcurrentDownloads);
         var tasks = new List<Task>(gameInfo.Segments.Count);
@@ -35,9 +36,48 @@ public sealed class DownloadService(
             {
                 try
                 {
-                    Console.WriteLine($"  downloading: {segment.FileName}");
+                    if (logger.IsEnabled(LogLevel.Debug))
+                        logger.LogDebug("Downloading segment {FileName}", segment.FileName);
+
+                    progress?.Report(new DownloadSegmentProgress
+                    {
+                        GameName = gameInfo.Name,
+                        SegmentFileName = segment.FileName,
+                        Status = DownloadSegmentStatus.Starting,
+                        SegmentsCompleted = completedSegments,
+                        SegmentsTotal = totalSegments
+                    });
+
                     await DownloadSegmentAsync(segment, gameDirectory, cancellationToken);
-                    Console.WriteLine($"  completed:   {segment.FileName}");
+
+                    var completed = Interlocked.Increment(ref completedSegments);
+
+                    if (logger.IsEnabled(LogLevel.Information))
+                        logger.LogInformation("Completed segment {FileName} ({Done}/{Total})", segment.FileName, completed, totalSegments);
+
+                    progress?.Report(new DownloadSegmentProgress
+                    {
+                        GameName = gameInfo.Name,
+                        SegmentFileName = segment.FileName,
+                        Status = DownloadSegmentStatus.Completed,
+                        SegmentsCompleted = completed,
+                        SegmentsTotal = totalSegments
+                    });
+                }
+                catch (Exception ex)
+                {
+                    if (logger.IsEnabled(LogLevel.Error))
+                        logger.LogError(ex, "Failed to download segment {FileName}", segment.FileName);
+
+                    progress?.Report(new DownloadSegmentProgress
+                    {
+                        GameName = gameInfo.Name,
+                        SegmentFileName = segment.FileName,
+                        Status = DownloadSegmentStatus.Failed,
+                        SegmentsCompleted = completedSegments,
+                        SegmentsTotal = totalSegments
+                    });
+                    throw;
                 }
                 finally
                 {
@@ -48,7 +88,8 @@ public sealed class DownloadService(
 
         await Task.WhenAll(tasks);
 
-        Console.WriteLine($"[OK] Completed download: {gameInfo.SanitizedDisplayName}");
+        if (logger.IsEnabled(LogLevel.Information))
+            logger.LogInformation("Download complete: {GameName}", gameInfo.SanitizedDisplayName);
     }
 
     public Task<string> GenerateDownloadListAsync(IEnumerable<GameInfo> games,

@@ -4,17 +4,16 @@ using Microsoft.Extensions.Logging;
 
 namespace BFGDL.NET.Services;
 
-public sealed partial class InstallerWrapIdFetcher(ILogger<InstallerWrapIdFetcher> logger) : IWrapIdFetcher
+public sealed partial class InstallerWrapIdFetcher(IAppPaths appPaths, ILogger<InstallerWrapIdFetcher> logger) : IWrapIdFetcher
 {
-    private static readonly string InstallersDirectory = Path.Combine(AppContext.BaseDirectory, "installers");
-
     public Task<IReadOnlyList<string>> FetchWrapIdsAsync(int count, CancellationToken cancellationToken = default)
     {
-        Directory.CreateDirectory(InstallersDirectory);
+        var installersDirectory = appPaths.InstallersDirectory;
+        Directory.CreateDirectory(installersDirectory);
         if (logger.IsEnabled(LogLevel.Information))
-            logger.LogInformation("Scanning directory for installers: {Directory}", InstallersDirectory);
+            logger.LogInformation("Scanning directory for installers: {Directory}", installersDirectory);
 
-        var wrapIds = Directory.GetFiles(InstallersDirectory, "*l1_gF*")
+        var wrapIds = Directory.GetFiles(installersDirectory, "*l1_gF*")
             .Select(Path.GetFileName)
             .Select(fileName => InstallerPattern().Match(fileName!))
             .Where(match => match.Success)

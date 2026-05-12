@@ -42,6 +42,44 @@ internal sealed class GraphQlProductItem
     public string? Sku { get; init; }
 
     [JsonPropertyName("url_key")] public string? UrlKey { get; init; }
+
+    [JsonPropertyName("short_description")] public GraphQlHtmlContent? ShortDescription { get; init; }
+
+    [JsonPropertyName("description")] public GraphQlHtmlContent? Description { get; init; }
+
+    public List<GraphQlCategory>? Categories { get; init; }
+
+    [JsonPropertyName("custom_attributes")] public List<GraphQlCustomAttribute>? CustomAttributes { get; init; }
+}
+
+internal sealed class GraphQlHtmlContent
+{
+    public string? Html { get; init; }
+}
+
+internal sealed class GraphQlCategory
+{
+    public string? Uid { get; init; }
+    public string? Name { get; init; }
+
+    [JsonPropertyName("url_key")] public string? UrlKey { get; init; }
+}
+
+internal sealed class GraphQlCustomAttribute
+{
+    [JsonPropertyName("attribute_metadata")] public GraphQlAttributeMetadata? AttributeMetadata { get; init; }
+
+    [JsonPropertyName("entered_attribute_value")] public GraphQlAttributeValue? EnteredAttributeValue { get; init; }
+}
+
+internal sealed class GraphQlAttributeMetadata
+{
+    public string? Code { get; init; }
+}
+
+internal sealed class GraphQlAttributeValue
+{
+    public string? Value { get; init; }
 }
 
 // GraphQL Query Variables Types
@@ -75,4 +113,10 @@ internal sealed class GraphQlFilter
 internal sealed class GraphQlSort
 {
     [JsonPropertyName("product_list_date")] public required string ProductListDate { get; init; }
+}
+
+// Variables for the per-SKU product detail query
+internal sealed class GraphQlSkuVariables
+{
+    [JsonPropertyName("sku")] public required string Sku { get; init; }
 }
