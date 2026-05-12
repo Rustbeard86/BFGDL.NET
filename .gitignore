@@ -370,3 +370,8 @@ FodyWeavers.xsd
 *.lscache
 build.txt
 build_output.txt
+
+# Language server / build output scratch files
+*.lscache
+build.txt
+build_output.txt
