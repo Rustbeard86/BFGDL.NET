@@ -50,10 +50,12 @@ public partial class BrowserViewModel : ReactiveObject
 
     public GameDetailViewModel Detail { get; }
     public DownloadQueueViewModel DownloadQueue { get; }
+    public CacheManagerViewModel CacheManager { get; }
 
     public BrowserViewModel(BigFishCatalogClient catalog, CatalogCache cache,
         ImagePreloader preloader, IDiskImageStore diskImageStore,
-        GameDetailViewModel detail, DownloadQueueViewModel downloadQueue)
+        GameDetailViewModel detail, DownloadQueueViewModel downloadQueue,
+        CacheManagerViewModel cacheManager)
     {
         _catalog = catalog;
         _cache = cache;
@@ -61,6 +63,7 @@ public partial class BrowserViewModel : ReactiveObject
         _diskImageStore = diskImageStore;
         Detail = detail;
         DownloadQueue = downloadQueue;
+        CacheManager = cacheManager;
 
         // Filter pipeline
         var filterChanged = this.WhenAnyValue(

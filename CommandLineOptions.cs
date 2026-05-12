@@ -15,6 +15,18 @@ public sealed record CommandLineOptions
     /// <summary>When combined with --cache-catalog, fetches all 10 supported languages.</summary>
     public bool AllLanguages { get; init; }
 
+    /// <summary>Max concurrent game-detail/image fetches when running --cache-catalog (default 4).</summary>
+    public int CacheConcurrency
+    {
+        get;
+        init
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(value, 1);
+            ArgumentOutOfRangeException.ThrowIfGreaterThan(value, 16);
+            field = value;
+        }
+    } = 4;
+
     public string? ExportInstallersJson
     {
         get;
@@ -85,6 +97,7 @@ public sealed record CommandLineOptions
         var showHelp = false;
         var showVersion = false;
         var maxConcurrent = 8;
+        var cacheConcurrency = 4;
         string? configFilePath = null;
         Platform? platform = null;
         Language? language = null;
@@ -119,6 +132,18 @@ public sealed record CommandLineOptions
 
                 case "-al" or "--all-languages":
                     allLanguages = true;
+                    break;
+
+                case "-cn" or "--concurrency":
+                    if (i + 1 < args.Length && int.TryParse(args[i + 1], out var concurrency))
+                    {
+                        cacheConcurrency = concurrency;
+                        i++;
+                    }
+                    else
+                    {
+                        throw new ArgumentException("Invalid value for -cn/--concurrency flag");
+                    }
                     break;
 
                 case "-j" or "--jobs":
@@ -206,6 +231,7 @@ public sealed record CommandLineOptions
             FetchFromInstallers = fetchFromInstallers,
             CacheCatalog = cacheCatalog,
             AllLanguages = allLanguages,
+            CacheConcurrency = cacheConcurrency,
             MaxConcurrentDownloads = maxConcurrent,
             ConfigFilePath = configFilePath,
             Platform = platform,
@@ -264,6 +290,7 @@ public sealed record CommandLineOptions
                             -l, --language LANG              Set language: eng, ger, spa, fre, ita, jap, dut, swe, dan, por
                             -cc, --cache-catalog             Fetch all catalog pages, game details, and images to disk
                             -al, --all-languages             Used with --cache-catalog: fetch all 10 supported languages
+                            -cn, --concurrency N             Parallel game fetches per page for --cache-catalog (default: 4, max: 16)
                             --export-installers-json=pretty|min  Export full (non-demo) installer segment lists grouped by WrapID language (L#)
                             --export-limit=N                 Limit number of games exported (for testing)
 

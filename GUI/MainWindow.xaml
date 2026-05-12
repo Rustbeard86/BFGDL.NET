@@ -16,6 +16,8 @@
             <RowDefinition Height="48" />
             <!-- Main content -->
             <RowDefinition Height="*" />
+            <!-- Cache manager drawer -->
+            <RowDefinition Height="Auto" />
             <!-- Download drawer -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
@@ -82,9 +84,16 @@
                 <StackPanel Grid.Column="8" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                     <Button Content="Refresh"
                             Command="{Binding RefreshCommand}"
-                            Margin="0,0,12,0" />
+                            Margin="0,0,12,0"
+                            Visibility="{Binding AllCachedPagesLoaded, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
                     <Button Content="Load More"
-                            Command="{Binding LoadNextPageCommand}" />
+                            Command="{Binding LoadNextPageCommand}"
+                            Visibility="{Binding AllCachedPagesLoaded, Converter={StaticResource InvertedBoolToVisibilityConverter}}" />
+                    <Button Content="☁ Update Cache"
+                            Command="{Binding CacheManager.ToggleCommand}"
+                            Margin="12,0,0,0"
+                            Padding="10,4"
+                            ToolTip="Open Cache Manager to download metadata and images for all languages" />
                     <TextBlock Text="{Binding StatusText}"
                                Margin="16,0,0,0"
                                VerticalAlignment="Center"
@@ -154,8 +163,14 @@
             </ContentControl>
         </Grid>
 
+        <!-- ── Cache Manager Drawer ── -->
+        <views:CacheManagerDrawer Grid.Row="2"
+                                   DataContext="{Binding CacheManager}"
+                                   Visibility="{Binding CacheManager.IsVisible,
+                                                Converter={StaticResource BoolToVisibilityConverter}}" />
+
         <!-- ── Download Drawer ── -->
-        <Expander Grid.Row="2"
+        <Expander Grid.Row="3"
                   Header="{Binding DownloadQueue.SummaryText}"
                   IsExpanded="{Binding DownloadQueue.IsDrawerExpanded}"
                   DataContext="{Binding}"

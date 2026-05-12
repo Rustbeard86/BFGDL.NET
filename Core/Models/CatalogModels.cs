@@ -55,6 +55,26 @@ public sealed record CachedPageData(
     int TotalCount,
     int TotalPages);
 
+/// <summary>
+/// Progress snapshot reported by <see cref="BFGDL.NET.Services.CatalogFetchService"/>
+/// after each completed page.  Consumed by the GUI Cache Manager panel via
+/// <see cref="IProgress{T}"/>; the CLI passes <c>null</c> and uses Console output instead.
+/// </summary>
+public sealed record CatalogFetchProgress
+{
+    public required Language Language { get; init; }
+    public required int Page { get; init; }
+    public required int TotalPages { get; init; }
+    public required int GamesNew { get; init; }
+    public required int GamesSkipped { get; init; }
+    public required int GamesFailed { get; init; }
+    public required int ImagesNew { get; init; }
+    public required int ImagesOnDisk { get; init; }
+    public required int ImagesFailed { get; init; }
+    /// <summary>True on the final report for this language.</summary>
+    public required bool IsComplete { get; init; }
+}
+
 /// <summary>Progress update for a single downloading segment.</summary>
 public sealed record DownloadSegmentProgress
 {

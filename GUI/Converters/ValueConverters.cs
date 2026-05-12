@@ -16,6 +16,26 @@ public sealed class BoolToVisibilityConverter : IValueConverter
         => value is Visibility.Visible;
 }
 
+[ValueConversion(typeof(bool), typeof(Visibility))]
+public sealed class InvertedBoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? Visibility.Collapsed : Visibility.Visible;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is not Visibility.Visible;
+}
+
+[ValueConversion(typeof(bool), typeof(bool))]
+public sealed class InvertedBoolConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is not true;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is not true;
+}
+
 [ValueConversion(typeof(int), typeof(Visibility))]
 public sealed class NonZeroToVisibilityConverter : IValueConverter
 {

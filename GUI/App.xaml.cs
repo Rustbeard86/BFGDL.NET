@@ -73,10 +73,12 @@ public partial class App : Application
         services.AddSingleton<ImagePreloader>();
         services.AddSingleton<CatalogCache>();
         services.AddTransient<InstallerWrapIdFetcher>();
+        services.AddTransient<CatalogFetchService>();
 
         // ViewModels
         services.AddSingleton<GameDetailViewModel>();
         services.AddSingleton<DownloadQueueViewModel>();
+        services.AddSingleton<CacheManagerViewModel>();
         services.AddSingleton<BrowserViewModel>();
 
         // Views

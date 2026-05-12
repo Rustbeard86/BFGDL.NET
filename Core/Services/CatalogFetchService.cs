@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using BFGDL.NET.Models;
@@ -12,7 +13,7 @@ namespace BFGDL.NET.Services;
 /// already saved to disk — pages within TTL, game details within TTL,
 /// images that already exist as files on disk.
 ///
-/// Intended for the CLI <c>--cache-catalog</c> command.
+/// Intended for the CLI <c>--cache-catalog</c> command and the GUI Cache Manager panel.
 /// </summary>
 public sealed class CatalogFetchService(
     BigFishCatalogClient catalog,
@@ -25,7 +26,7 @@ public sealed class CatalogFetchService(
     public static readonly IReadOnlyList<Language> SupportedLanguages =
         Enum.GetValues<Language>().ToList();
 
-    // ── Stats ─────────────────────────────────────────────────────────────────
+    // ── Stats (all fields updated via Interlocked for thread safety) ──────────
 
     private sealed class RunStats
     {
@@ -41,10 +42,20 @@ public sealed class CatalogFetchService(
 
     // ── Entry point ───────────────────────────────────────────────────────────
 
+    /// <param name="platform">Target platform.</param>
+    /// <param name="languages">Languages to fetch.</param>
+    /// <param name="concurrencyLevel">Max parallel game-detail/image fetches per page (default 4).</param>
+    /// <param name="progress">
+    /// Optional GUI progress sink. Receives a snapshot after each page and on language completion.
+    /// Pass <c>null</c> for CLI usage — Console output is used instead.
+    /// </param>
+    /// <param name="ct">Cancellation token.</param>
     public async Task FetchAllAsync(
         Platform platform,
         IEnumerable<Language> languages,
-        CancellationToken ct)
+        int concurrencyLevel = 4,
+        IProgress<CatalogFetchProgress>? progress = null,
+        CancellationToken ct = default)
     {
         var langList = languages.ToList();
         var allStats = new List<(Language lang, RunStats stats, TimeSpan elapsed)>();
@@ -53,27 +64,34 @@ public sealed class CatalogFetchService(
         foreach (var language in langList)
         {
             ct.ThrowIfCancellationRequested();
-            var (stats, elapsed) = await FetchLanguageAsync(platform, language, ct);
+            var (stats, elapsed) = await FetchLanguageAsync(
+                platform, language, concurrencyLevel, progress, ct);
             allStats.Add((language, stats, elapsed));
         }
 
-        PrintFinalReport(platform, allStats, totalSw.Elapsed);
+        if (progress is null)
+            PrintFinalReport(platform, allStats, totalSw.Elapsed);
     }
 
     // ── Per-language ──────────────────────────────────────────────────────────
 
     private async Task<(RunStats stats, TimeSpan elapsed)> FetchLanguageAsync(
-        Platform platform, Language language, CancellationToken ct)
+        Platform platform, Language language, int concurrencyLevel,
+        IProgress<CatalogFetchProgress>? progress, CancellationToken ct)
     {
         var stats = new RunStats();
         var sw = Stopwatch.StartNew();
         var langId = LanguageIdForEnum(language);
         var page = 1;
         int totalPages = 0;
-        var detailFetched = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // Thread-safe dedup across parallel game fetches within a page
+        var detailFetched = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase);
 
-        Console.WriteLine();
-        Console.WriteLine($"┌─ {platform} / {language} ────────────────────────────────────────");
+        if (progress is null)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"┌─ {platform} / {language} ────────────────────────────────────────");
+        }
 
         do
         {
@@ -89,12 +107,13 @@ public sealed class CatalogFetchService(
             {
                 pageItems  = cachedPage.Items;
                 totalPages = cachedPage.TotalPages;
-                stats.PagesFromCache++;
-                Console.WriteLine($"│  Page {page}/{totalPages} — {pageItems.Count} games [cached]");
+                Interlocked.Increment(ref stats.PagesFromCache);
+                if (progress is null)
+                    Console.WriteLine($"│  Page {page}/{totalPages} — {pageItems.Count} games [cached]");
             }
             else
             {
-                Console.Write($"│  Page {page}…");
+                if (progress is null) Console.Write($"│  Page {page}…");
                 BigFishCatalogClient.CatalogPageSummary result;
                 try
                 {
@@ -105,7 +124,7 @@ public sealed class CatalogFetchService(
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($" FAILED: {ex.Message}");
+                    if (progress is null) Console.WriteLine($" FAILED: {ex.Message}");
                     logger.LogError(ex, "Failed to fetch page {Page} for {Platform}/{Language}",
                         page, platform, language);
                     break;
@@ -113,36 +132,75 @@ public sealed class CatalogFetchService(
 
                 pageItems  = result.Items;
                 totalPages = result.TotalPages;
-                stats.PagesFromNetwork++;
-                Console.WriteLine($" {result.Items.Count} games  (total catalog: {result.TotalCount})");
+                Interlocked.Increment(ref stats.PagesFromNetwork);
+                if (progress is null)
+                    Console.WriteLine($" {result.Items.Count} games  (total catalog: {result.TotalCount})");
 
                 await cache.SavePageAsync(platform, language, page, PageSize,
                     new CachedPageData(result.Items, result.TotalCount, result.TotalPages), ct)
                     .ConfigureAwait(false);
             }
 
-            // Process each game
+            // ── Process games in parallel ──────────────────────────────────
             var n = pageItems.Count;
-            for (var i = 0; i < n; i++)
+            var processed = 0;
+
+            await Parallel.ForEachAsync(
+                pageItems,
+                new ParallelOptions { MaxDegreeOfParallelism = concurrencyLevel, CancellationToken = ct },
+                async (game, gameCt) =>
+                {
+                    var idx = Interlocked.Increment(ref processed);
+                    if (progress is null)
+                        Console.Write($"\r│    [{idx}/{n}] {Truncate(game.Name, 46),-47}");
+                    await FetchGameAsync(game, platform, language, detailFetched, stats, gameCt)
+                        .ConfigureAwait(false);
+                }).ConfigureAwait(false);
+
+            if (progress is null)
             {
-                ct.ThrowIfCancellationRequested();
-                Console.Write($"\r│    [{i + 1}/{n}] {Truncate(pageItems[i].Name, 46),-47}");
-                await FetchGameAsync(pageItems[i], platform, language, detailFetched, stats, ct)
-                    .ConfigureAwait(false);
+                Console.Write('\r');
+                Console.WriteLine($"│  Page {page}/{totalPages} done — {n} games " +
+                    $"({stats.GamesNew} new, {stats.GamesSkipped} skipped, {stats.GamesFailed} failed)");
             }
 
-            // Clear rolling line
-            Console.Write('\r');
-            Console.WriteLine($"│  Page {page}/{totalPages} done — {n} games " +
-                $"({stats.GamesNew} new, {stats.GamesSkipped} skipped, {stats.GamesFailed} failed)");
+            progress?.Report(new CatalogFetchProgress
+            {
+                Language      = language,
+                Page          = page,
+                TotalPages    = totalPages,
+                GamesNew      = stats.GamesNew,
+                GamesSkipped  = stats.GamesSkipped,
+                GamesFailed   = stats.GamesFailed,
+                ImagesNew     = stats.ImagesNew,
+                ImagesOnDisk  = stats.ImagesOnDisk,
+                ImagesFailed  = stats.ImagesFailed,
+                IsComplete    = false,
+            });
 
             page++;
             if (page <= totalPages)
-                await Task.Delay(500, ct).ConfigureAwait(false);
+                await Task.Delay(200, ct).ConfigureAwait(false);
 
         } while (totalPages == 0 || page <= totalPages);
 
-        Console.WriteLine($"└─ {platform} / {language} complete ({FormatElapsed(sw.Elapsed)})");
+        if (progress is null)
+            Console.WriteLine($"└─ {platform} / {language} complete ({FormatElapsed(sw.Elapsed)})");
+
+        // Final completion snapshot for this language
+        progress?.Report(new CatalogFetchProgress
+        {
+            Language      = language,
+            Page          = totalPages,
+            TotalPages    = totalPages,
+            GamesNew      = stats.GamesNew,
+            GamesSkipped  = stats.GamesSkipped,
+            GamesFailed   = stats.GamesFailed,
+            ImagesNew     = stats.ImagesNew,
+            ImagesOnDisk  = stats.ImagesOnDisk,
+            ImagesFailed  = stats.ImagesFailed,
+            IsComplete    = true,
+        });
 
         return (stats, sw.Elapsed);
     }
@@ -153,7 +211,7 @@ public sealed class CatalogFetchService(
         CatalogGameSummary game,
         Platform platform,
         Language language,
-        HashSet<string> detailFetched,
+        ConcurrentDictionary<string, byte> detailFetched,
         RunStats stats,
         CancellationToken ct)
     {
@@ -162,14 +220,17 @@ public sealed class CatalogFetchService(
             await TryDownloadImage(game.ThumbnailUrl, game.WrapId, stats, ct).ConfigureAwait(false);
 
         var detailKey = $"{game.WrapId}_{language}";
-        if (detailFetched.Contains(detailKey)) { stats.GamesSkipped++; return; }
+        if (!detailFetched.TryAdd(detailKey, 0))
+        {
+            Interlocked.Increment(ref stats.GamesSkipped);
+            return;
+        }
 
         var existing = await cache.TryGetDetailAsync(game.WrapId, language, ct)
             .ConfigureAwait(false);
         if (existing is not null)
         {
-            detailFetched.Add(detailKey);
-            stats.GamesSkipped++;
+            Interlocked.Increment(ref stats.GamesSkipped);
             return;
         }
 
@@ -180,14 +241,13 @@ public sealed class CatalogFetchService(
 
             if (detail is null)
             {
-                stats.GamesFailed++;
+                Interlocked.Increment(ref stats.GamesFailed);
                 logger.LogWarning("No detail returned for {WrapId} ({Name})", game.WrapId, game.Name);
                 return;
             }
 
             await cache.SaveDetailAsync(detail, ct).ConfigureAwait(false);
-            detailFetched.Add(detailKey);
-            stats.GamesNew++;
+            Interlocked.Increment(ref stats.GamesNew);
 
             var imageUrls = new List<string>(8);
             if (!string.IsNullOrWhiteSpace(detail.HeroImageUrl))    imageUrls.Add(detail.HeroImageUrl);
@@ -196,13 +256,11 @@ public sealed class CatalogFetchService(
 
             foreach (var url in imageUrls)
                 await TryDownloadImage(url, detail.WrapId, stats, ct).ConfigureAwait(false);
-
-            await Task.Delay(100, ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            stats.GamesFailed++;
+            Interlocked.Increment(ref stats.GamesFailed);
             logger.LogWarning(ex, "Failed to fetch detail for {WrapId}", game.WrapId);
         }
     }
@@ -212,23 +270,21 @@ public sealed class CatalogFetchService(
     private async Task TryDownloadImage(
         string url, string wrapId, RunStats stats, CancellationToken ct)
     {
-        // If already indexed in memory, it was downloaded this session or a prior one
         var alreadyKnown = diskImageStore.GetLocalPath(url) is not null;
         var path = await diskImageStore.DownloadAsync(url, wrapId, ct).ConfigureAwait(false);
 
-        if (path is null)  { stats.ImagesFailed++; return; }
+        if (path is null) { Interlocked.Increment(ref stats.ImagesFailed); return; }
 
-        if (alreadyKnown)  { stats.ImagesOnDisk++;  return; }
+        if (alreadyKnown) { Interlocked.Increment(ref stats.ImagesOnDisk); return; }
 
-        // Not in memory index but file existed on disk (cold start, previous run)
         var age = DateTimeOffset.UtcNow - File.GetLastWriteTimeUtc(path);
         if (age > TimeSpan.FromSeconds(5))
-             { stats.ImagesOnDisk++; return; }
+             { Interlocked.Increment(ref stats.ImagesOnDisk); return; }
 
-        stats.ImagesNew++;
+        Interlocked.Increment(ref stats.ImagesNew);
     }
 
-    // ── Final report ──────────────────────────────────────────────────────────
+    // ── Final report (CLI only) ───────────────────────────────────────────────
 
     private static void PrintFinalReport(
         Platform platform,
@@ -284,15 +340,15 @@ public sealed class CatalogFetchService(
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static string FormatElapsed(TimeSpan t) =>
-        t.TotalHours >= 1  ? $"{(int)t.TotalHours}h {t.Minutes:D2}m {t.Seconds:D2}s" :
+    internal static string FormatElapsed(TimeSpan t) =>
+        t.TotalHours >= 1   ? $"{(int)t.TotalHours}h {t.Minutes:D2}m {t.Seconds:D2}s" :
         t.TotalMinutes >= 1 ? $"{t.Minutes}m {t.Seconds:D2}s" :
                               $"{t.Seconds}.{t.Milliseconds / 100}s";
 
     private static string Truncate(string s, int max) =>
         s.Length <= max ? s : s[..(max - 1)] + "…";
 
-    private static string LanguageIdForEnum(Language lang) => lang switch
+    internal static string LanguageIdForEnum(Language lang) => lang switch
     {
         Language.English    => "114",
         Language.German     => "117",

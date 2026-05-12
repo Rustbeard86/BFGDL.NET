@@ -27,7 +27,10 @@ public sealed class Application(
                 ? $"Caching full catalog for {appConfiguration.Platform} in all {languages.Count} languages..."
                 : $"Caching full catalog for {appConfiguration.Platform} / {appConfiguration.Language}...");
 
-            await fetcher.FetchAllAsync(appConfiguration.Platform, languages, CancellationToken.None);
+            await fetcher.FetchAllAsync(
+                appConfiguration.Platform, languages,
+                concurrencyLevel: options.CacheConcurrency,
+                ct: CancellationToken.None);
             Console.WriteLine("[OK] Catalog cache complete.");
             return;
         }
