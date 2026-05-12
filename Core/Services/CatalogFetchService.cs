@@ -102,6 +102,7 @@ public sealed class CatalogFetchService(
                 platform, language, page, PageSize, ct).ConfigureAwait(false);
 
             IReadOnlyList<CatalogGameSummary> pageItems;
+            List<CatalogGameDetail>? networkDetails = null;
 
             if (cachedPage is not null)
             {
@@ -114,10 +115,10 @@ public sealed class CatalogFetchService(
             else
             {
                 if (progress is null) Console.Write($"│  Page {page}…");
-                BigFishCatalogClient.CatalogPageSummary result;
+                (List<CatalogGameDetail> Details, int TotalCount, int TotalPages) result;
                 try
                 {
-                    result = await catalog.GetCatalogPageWithSummaryAsync(
+                    result = await catalog.GetCatalogPageWithDetailAsync(
                         platform, language, langId, page, PageSize, ct)
                         .ConfigureAwait(false);
                 }
@@ -130,32 +131,56 @@ public sealed class CatalogFetchService(
                     break;
                 }
 
-                pageItems  = result.Items;
+                networkDetails = result.Details;
+                pageItems  = networkDetails; // CatalogGameDetail : CatalogGameSummary — covariant
                 totalPages = result.TotalPages;
                 Interlocked.Increment(ref stats.PagesFromNetwork);
                 if (progress is null)
-                    Console.WriteLine($" {result.Items.Count} games  (total catalog: {result.TotalCount})");
+                    Console.WriteLine($" {networkDetails.Count} games  (total catalog: {result.TotalCount})");
 
                 await cache.SavePageAsync(platform, language, page, PageSize,
-                    new CachedPageData(result.Items, result.TotalCount, result.TotalPages), ct)
+                    new CachedPageData(pageItems, result.TotalCount, result.TotalPages), ct)
                     .ConfigureAwait(false);
             }
 
             // ── Process games in parallel ──────────────────────────────────
             var n = pageItems.Count;
             var processed = 0;
+            var opts = new ParallelOptions { MaxDegreeOfParallelism = concurrencyLevel, CancellationToken = ct };
 
-            await Parallel.ForEachAsync(
-                pageItems,
-                new ParallelOptions { MaxDegreeOfParallelism = concurrencyLevel, CancellationToken = ct },
-                async (game, gameCt) =>
-                {
-                    var idx = Interlocked.Increment(ref processed);
-                    if (progress is null)
-                        Console.Write($"\r│    [{idx}/{n}] {Truncate(game.Name, 46),-47}");
-                    await FetchGameAsync(game, platform, language, detailFetched, stats, gameCt)
-                        .ConfigureAwait(false);
-                }).ConfigureAwait(false);
+            if (networkDetails is not null)
+            {
+                // Network path: details already in the page response — save + download images, no extra HTTP
+                await Parallel.ForEachAsync(
+                    networkDetails,
+                    opts,
+                    async (detail, gameCt) =>
+                    {
+                        var idx = Interlocked.Increment(ref processed);
+                        if (progress is null)
+                            Console.Write($"\r│    [{idx}/{n}] {Truncate(detail.Name, 46),-47}");
+                        var key = $"{detail.WrapId}_{language}";
+                        if (!detailFetched.TryAdd(key, 0)) { Interlocked.Increment(ref stats.GamesSkipped); return; }
+                        await cache.SaveDetailAsync(detail, gameCt).ConfigureAwait(false);
+                        Interlocked.Increment(ref stats.GamesNew);
+                        await FetchImagesAsync(detail, stats, gameCt).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+            }
+            else
+            {
+                // Cached page path: load detail from cache, download any missing images
+                await Parallel.ForEachAsync(
+                    pageItems,
+                    opts,
+                    async (game, gameCt) =>
+                    {
+                        var idx = Interlocked.Increment(ref processed);
+                        if (progress is null)
+                            Console.Write($"\r│    [{idx}/{n}] {Truncate(game.Name, 46),-47}");
+                        await FetchGameFromCacheAsync(game, platform, language, detailFetched, stats, gameCt)
+                            .ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+            }
 
             if (progress is null)
             {
@@ -205,9 +230,9 @@ public sealed class CatalogFetchService(
         return (stats, sw.Elapsed);
     }
 
-    // ── Per-game ──────────────────────────────────────────────────────────────
+    // ── Per-game (cached-page path) ───────────────────────────────────────────
 
-    private async Task FetchGameAsync(
+    private async Task FetchGameFromCacheAsync(
         CatalogGameSummary game,
         Platform platform,
         Language language,
@@ -215,10 +240,6 @@ public sealed class CatalogFetchService(
         RunStats stats,
         CancellationToken ct)
     {
-        // Thumbnail — cheap, DiskImageStore skips files already on disk
-        if (!string.IsNullOrWhiteSpace(game.ThumbnailUrl))
-            await TryDownloadImage(game.ThumbnailUrl, game.WrapId, stats, ct).ConfigureAwait(false);
-
         var detailKey = $"{game.WrapId}_{language}";
         if (!detailFetched.TryAdd(detailKey, 0))
         {
@@ -226,43 +247,43 @@ public sealed class CatalogFetchService(
             return;
         }
 
-        var existing = await cache.TryGetDetailAsync(game.WrapId, language, ct)
-            .ConfigureAwait(false);
-        if (existing is not null)
-        {
-            Interlocked.Increment(ref stats.GamesSkipped);
-            return;
-        }
+        // Detail should already be cached from the original network fetch
+        var detail = await cache.TryGetDetailAsync(game.WrapId, language, ct).ConfigureAwait(false)
+                  ?? await cache.TryGetDetailStaleAsync(game.WrapId, language, ct).ConfigureAwait(false);
 
-        try
+        if (detail is null)
         {
-            var detail = await catalog.GetProductDetailAsync(game.WrapId, platform, language, ct)
-                .ConfigureAwait(false);
-
-            if (detail is null)
+            // Fallback: detail somehow missing — fetch from network
+            try
             {
-                Interlocked.Increment(ref stats.GamesFailed);
-                logger.LogWarning("No detail returned for {WrapId} ({Name})", game.WrapId, game.Name);
-                return;
+                detail = await catalog.GetProductDetailAsync(game.WrapId, platform, language, ct)
+                    .ConfigureAwait(false);
+                if (detail is not null)
+                    await cache.SaveDetailAsync(detail, ct).ConfigureAwait(false);
             }
-
-            await cache.SaveDetailAsync(detail, ct).ConfigureAwait(false);
-            Interlocked.Increment(ref stats.GamesNew);
-
-            var imageUrls = new List<string>(8);
-            if (!string.IsNullOrWhiteSpace(detail.HeroImageUrl))    imageUrls.Add(detail.HeroImageUrl);
-            if (!string.IsNullOrWhiteSpace(detail.FeatureImageUrl)) imageUrls.Add(detail.FeatureImageUrl);
-            imageUrls.AddRange(detail.ScreenshotUrls.Where(u => !string.IsNullOrWhiteSpace(u)));
-
-            foreach (var url in imageUrls)
-                await TryDownloadImage(url, detail.WrapId, stats, ct).ConfigureAwait(false);
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to fetch detail for {WrapId}", game.WrapId);
+            }
         }
-        catch (OperationCanceledException) { throw; }
-        catch (Exception ex)
-        {
-            Interlocked.Increment(ref stats.GamesFailed);
-            logger.LogWarning(ex, "Failed to fetch detail for {WrapId}", game.WrapId);
-        }
+
+        if (detail is null) { Interlocked.Increment(ref stats.GamesFailed); return; }
+
+        Interlocked.Increment(ref stats.GamesSkipped);
+        await FetchImagesAsync(detail, stats, ct).ConfigureAwait(false);
+    }
+
+    private async Task FetchImagesAsync(CatalogGameDetail detail, RunStats stats, CancellationToken ct)
+    {
+        if (!string.IsNullOrWhiteSpace(detail.ThumbnailUrl))
+            await TryDownloadImage(detail.ThumbnailUrl, detail.WrapId, stats, ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(detail.HeroImageUrl))
+            await TryDownloadImage(detail.HeroImageUrl, detail.WrapId, stats, ct).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(detail.FeatureImageUrl))
+            await TryDownloadImage(detail.FeatureImageUrl, detail.WrapId, stats, ct).ConfigureAwait(false);
+        foreach (var url in detail.ScreenshotUrls.Where(u => !string.IsNullOrWhiteSpace(u)))
+            await TryDownloadImage(url, detail.WrapId, stats, ct).ConfigureAwait(false);
     }
 
     // ── Image download with stats ─────────────────────────────────────────────

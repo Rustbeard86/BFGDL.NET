@@ -18,9 +18,9 @@ public sealed class BigFishCatalogClient(HttpClient httpClient)
         "Exclusive Access", "New Games", "Top Sellers"
     };
 
-    // Catalog list query — includes custom_attributes for images + genres filtering
+    // Catalog list query — includes description + custom_attributes so no separate detail request is needed
     private const string ListQuery =
-        "query GetCategories($id:String!$pageSize:Int!$currentPage:Int!$filters:ProductAttributeFilterInput!$sort:ProductAttributeSortInput){categories(filters:{category_uid:{in:[$id]}}){items{uid __typename}__typename}products(pageSize:$pageSize currentPage:$currentPage filter:$filters sort:$sort){items{id uid name product_list_date sku platform language url_key short_description{html}categories{uid name url_key}custom_attributes{attribute_metadata{code}entered_attribute_value{value}}__typename}page_info{total_pages __typename}total_count __typename}}";
+        "query GetCategories($id:String!$pageSize:Int!$currentPage:Int!$filters:ProductAttributeFilterInput!$sort:ProductAttributeSortInput){categories(filters:{category_uid:{in:[$id]}}){items{uid __typename}__typename}products(pageSize:$pageSize currentPage:$currentPage filter:$filters sort:$sort){items{id uid name product_list_date sku platform language url_key short_description{html}description{html}categories{uid name url_key}custom_attributes{attribute_metadata{code}entered_attribute_value{value}}__typename}page_info{total_pages __typename}total_count __typename}}";
 
     // Detail query — fetches full description + all custom_attributes by SKU
     private const string DetailQuery =
@@ -117,7 +117,31 @@ public sealed class BigFishCatalogClient(HttpClient httpClient)
 
         var item = body?.Data?.Products?.Items?.FirstOrDefault();
         if (item is null) return null;
+        return MapToDetail(item, platform, language);
+    }
 
+    // ── Catalog paged list with full detail (used by CatalogFetchService) ────────
+
+    public async Task<(List<CatalogGameDetail> Details, int TotalCount, int TotalPages)> GetCatalogPageWithDetailAsync(
+        Platform platform,
+        Language language,
+        string languageId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var result = await GetCatalogPageCoreAsync(platform, languageId, page, pageSize, cancellationToken)
+            .ConfigureAwait(false);
+        var details = result.Items
+            .Select(item => MapToDetail(item, platform, language))
+            .Where(d => d is not null)
+            .Select(d => d!)
+            .ToList();
+        return (details, result.TotalCount, result.TotalPages);
+    }
+
+    private static CatalogGameDetail? MapToDetail(GraphQlProductItem item, Platform platform, Language language)
+    {
         var summary = MapToSummary(item, platform, language);
         if (summary is null) return null;
 

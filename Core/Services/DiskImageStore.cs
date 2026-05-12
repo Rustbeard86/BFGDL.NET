@@ -69,6 +69,43 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
         return _index.TryGetValue(url, out var path) ? path : null;
     }
 
+    // ── Language-aware URL helpers ─────────────────────────────────────────────
+
+    // CDN URL pattern: …/games/{lang}_{slug}/{filename}
+    // Only the language prefix changes between locales; image content is identical
+    // EXCEPT for _feature images which carry localised text overlays.
+    private static readonly string[] NonEnglishPrefixes =
+        ["de_", "es_", "fr_", "it_", "ja_", "nl_", "sv_", "da_", "pt_"];
+
+    /// <summary>
+    /// Returns true for images known to contain language-specific text (e.g. "Collector's Edition").
+    /// These must be downloaded per language; everything else can reuse the English copy.
+    /// </summary>
+    private static bool IsLanguageSpecificImage(string url)
+    {
+        var slash = url.LastIndexOf('/');
+        var filename = slash >= 0 ? url[(slash + 1)..] : url;
+        var dot = filename.LastIndexOf('.');
+        var stem = dot >= 0 ? filename[..dot] : filename;
+        return stem.EndsWith("_feature", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// If the URL has a non-English language prefix in the CDN path, returns the English
+    /// equivalent URL. Returns null if the URL is already English or doesn't match the pattern.
+    /// </summary>
+    private static string? ToEnglishUrl(string url)
+    {
+        const string gamesSegment = "/games/";
+        var idx = url.IndexOf(gamesSegment, StringComparison.Ordinal);
+        if (idx < 0) return null;
+        var start = idx + gamesSegment.Length;
+        foreach (var prefix in NonEnglishPrefixes)
+            if (url.AsSpan(start).StartsWith(prefix, StringComparison.Ordinal))
+                return string.Concat(url.AsSpan(0, start), "en_", url.AsSpan(start + prefix.Length));
+        return null;
+    }
+
     // ── Download ──────────────────────────────────────────────────────────────
 
     public async Task<string?> DownloadAsync(string url, string wrapId,
@@ -79,6 +116,22 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
 
         // Already in local cache — no download needed
         if (_index.TryGetValue(url, out var cached)) return cached;
+
+        // For images that don't carry language-specific text, reuse the English copy if
+        // it is already on disk — register the new URL pointing to the same file without
+        // downloading anything.
+        if (!IsLanguageSpecificImage(url))
+        {
+            var enUrl = ToEnglishUrl(url);
+            if (enUrl is not null && _index.TryGetValue(enUrl, out var enPath))
+            {
+                _index[url] = enPath;
+                // Persist the cross-reference in the English game's index so it survives restart
+                await UpdateIndexAsync(url, Path.GetFileName(enPath),
+                    Path.GetDirectoryName(enPath)!, ct).ConfigureAwait(false);
+                return enPath;
+            }
+        }
 
         try
         {
@@ -125,6 +178,15 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
 
             await UpdateIndexAsync(url, filename, imagesDir, ct).ConfigureAwait(false);
             _index[url] = localPath;
+
+            // Cross-register the English equivalent so subsequent languages reuse this file
+            if (!IsLanguageSpecificImage(url))
+            {
+                var enUrl = ToEnglishUrl(url);
+                if (enUrl is not null && _index.TryAdd(enUrl, localPath))
+                    await UpdateIndexAsync(enUrl, filename, imagesDir, ct).ConfigureAwait(false);
+            }
+
             return localPath;
         }
         catch (OperationCanceledException) { throw; }
