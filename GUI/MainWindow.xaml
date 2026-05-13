@@ -14,6 +14,8 @@
         <Grid.RowDefinitions>
             <!-- Toolbar -->
             <RowDefinition Height="48" />
+            <!-- New-titles banner (collapses when count is 0) -->
+            <RowDefinition Height="Auto" />
             <!-- Main content -->
             <RowDefinition Height="*" />
             <!-- Cache manager drawer -->
@@ -107,8 +109,38 @@
             </Grid>
         </Border>
 
+        <!-- ── New-titles banner ── -->
+        <Border Grid.Row="1"
+                Background="{StaticResource AccentBrush}"
+                Padding="14,7"
+                Visibility="{Binding NewTitlesCount, Converter={StaticResource NonZeroToVisibilityConverter}}">
+            <DockPanel>
+                <Button DockPanel.Dock="Right"
+                        Content="✕"
+                        Command="{Binding DismissNewTitlesBannerCommand}"
+                        Background="Transparent"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Padding="8,0"
+                        ToolTip="Dismiss" />
+                <Button DockPanel.Dock="Right"
+                        Content="Update Cache"
+                        Command="{Binding StartCacheUpdateCommand}"
+                        Margin="0,0,8,0"
+                        Padding="12,4"
+                        Background="Transparent"
+                        Foreground="White"
+                        BorderBrush="White"
+                        ToolTip="Download metadata and images for all new titles" />
+                <TextBlock VerticalAlignment="Center"
+                           Foreground="White"
+                           FontWeight="SemiBold"
+                           Text="{Binding NewTitlesCount, StringFormat='{}{0} new game(s) available since your last cache update'}" />
+            </DockPanel>
+        </Border>
+
         <!-- ── Master / Detail ── -->
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="360" MinWidth="240" MaxWidth="600" />
                 <ColumnDefinition Width="4" />
@@ -169,13 +201,13 @@
         </Grid>
 
         <!-- ── Cache Manager Drawer ── -->
-        <views:CacheManagerDrawer Grid.Row="2"
+        <views:CacheManagerDrawer Grid.Row="3"
                                    DataContext="{Binding CacheManager}"
                                    Visibility="{Binding CacheManager.IsVisible,
                                                 Converter={StaticResource BoolToVisibilityConverter}}" />
 
         <!-- ── Download Drawer ── -->
-        <Expander Grid.Row="3"
+        <Expander Grid.Row="4"
                   Header="{Binding DownloadQueue.SummaryText}"
                   IsExpanded="{Binding DownloadQueue.IsDrawerExpanded}"
                   DataContext="{Binding}"

@@ -36,6 +36,7 @@ public partial class BrowserViewModel : ReactiveObject
     [Reactive] private string _statusText = string.Empty;
     [Reactive] private bool _allCachedPagesLoaded;
     [Reactive] private bool _launchOnPrimaryMonitor;
+    [Reactive] private int _newTitlesCount;
 
     public ReadOnlyObservableCollection<CatalogGameSummary> FilteredGames => _filteredGames;
 
@@ -49,6 +50,8 @@ public partial class BrowserViewModel : ReactiveObject
 
     public ReactiveCommand<Unit, Unit> LoadNextPageCommand { get; }
     public ReactiveCommand<Unit, Unit> RefreshCommand { get; }
+    public ReactiveCommand<Unit, Unit> DismissNewTitlesBannerCommand { get; }
+    public ReactiveCommand<Unit, Unit> StartCacheUpdateCommand { get; }
 
     public GameDetailViewModel Detail { get; }
     public DownloadQueueViewModel DownloadQueue { get; }
@@ -113,6 +116,12 @@ public partial class BrowserViewModel : ReactiveObject
 
         LoadNextPageCommand = ReactiveCommand.CreateFromTask(LoadNextPageAsync, canLoadNext);
         RefreshCommand = ReactiveCommand.CreateFromTask(RefreshAsync);
+        DismissNewTitlesBannerCommand = ReactiveCommand.Create(() => { NewTitlesCount = 0; });
+        StartCacheUpdateCommand = ReactiveCommand.Create(() =>
+        {
+            NewTitlesCount = 0;
+            CacheManager.ToggleCommand.Execute().Subscribe();
+        });
 
         // When any filter becomes active, load all cached pages into memory
         this.WhenAnyValue(
@@ -125,6 +134,13 @@ public partial class BrowserViewModel : ReactiveObject
 
         // Initial load
         RefreshCommand.Execute().Subscribe();
+
+        // Once the initial load finishes, run a lightweight new-titles check in the background
+        RefreshCommand.IsExecuting
+            .SkipWhile(x => !x)   // ignore leading false before first execution
+            .Where(x => !x)        // take the false that immediately follows
+            .Take(1)
+            .Subscribe(_ => { var __ = CheckForNewTitlesAsync(CancellationToken.None); });
     }
 
     private static Func<CatalogGameSummary, bool> BuildFilter(string search, string? genre)
@@ -332,4 +348,27 @@ public partial class BrowserViewModel : ReactiveObject
         Language.Portuguese => "144",
         _ => "114"
     };
+
+    /// <summary>
+    /// Fetches page 1 of the live catalog (newest-first) and counts WrapIds not
+    /// present in the local cache. Sets <see cref="NewTitlesCount"/> if any are found.
+    /// Runs once at startup; silently swallows all errors.
+    /// </summary>
+    private async Task CheckForNewTitlesAsync(CancellationToken ct)
+    {
+        try
+        {
+            var knownIds = await _cache.GetKnownWrapIdsAsync(SelectedPlatform, SelectedLanguage, 48, ct);
+            if (knownIds.Count == 0) return; // no local cache at all — skip, user should do a full fetch
+
+            var languageId = LanguageIdForEnum(SelectedLanguage);
+            var page1 = await _catalog.GetCatalogPageAsync(SelectedPlatform, languageId, 1, 48, ct);
+
+            var newCount = page1.WrapIds.Count(id => !knownIds.Contains(id));
+            if (newCount > 0)
+                NewTitlesCount = newCount;
+        }
+        catch (OperationCanceledException) { }
+        catch { /* best-effort — never surface errors for a background probe */ }
+    }
 }
