@@ -52,8 +52,11 @@ public partial class DownloadQueueItemViewModel : ReactiveObject
         _cts = new CancellationTokenSource();
         StatusText = "Starting…";
 
+        // Called from UI thread — no Task.Run so continuations (property updates)
+        // always return to the UI SynchronizationContext. The actual I/O is done on
+        // thread-pool threads inside DownloadService itself.
         var progress = new Progress<DownloadSegmentProgress>(OnProgress);
-        _ = Task.Run(() => RunDownloadAsync(progress, _cts.Token));
+        _ = RunDownloadAsync(progress, _cts.Token);
     }
 
     private void OnProgress(DownloadSegmentProgress p)

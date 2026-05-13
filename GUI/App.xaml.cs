@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
@@ -65,8 +66,12 @@ public partial class App : Application
     private static void ConfigureServices(IServiceCollection services)
     {
         var logProvider = new ObservableLogProvider();
+        var fileLogPath = Path.Combine(AppContext.BaseDirectory, "debug.log");
         services.AddSingleton(logProvider);
-        services.AddLogging(b => b.AddProvider(logProvider).SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Debug));
+        services.AddLogging(b => b
+            .AddProvider(logProvider)
+            .AddProvider(new FileLoggerProvider(fileLogPath))
+            .SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Debug));
 
         // Paths
         services.AddSingleton<IAppPaths, GuiAppPaths>();
