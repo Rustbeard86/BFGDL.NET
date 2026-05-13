@@ -5,8 +5,8 @@ namespace BFGDL.NET.Services;
 public sealed class GuiAppPaths : IAppPaths
 {
     private string _outputRoot = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-        "BFGDL.NET");
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        "Downloads", "BFGDL.NET");
 
     public string OutputRoot
     {

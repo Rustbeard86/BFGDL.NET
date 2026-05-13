@@ -139,6 +139,15 @@ public sealed class DownloadService(
 
             using var response =
                 await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+
+            // 416 Range Not Satisfiable — file is already fully downloaded, nothing to do
+            if (response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+            {
+                if (logger.IsEnabled(LogLevel.Debug))
+                    logger.LogDebug("Segment {FileName} already complete (416)", segment.FileName);
+                return;
+            }
+
             response.EnsureSuccessStatusCode();
 
             await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
