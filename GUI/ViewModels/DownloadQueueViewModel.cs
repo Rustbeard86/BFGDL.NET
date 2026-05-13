@@ -1,3 +1,4 @@
+using System.IO;
 using System.Reactive;
 using System.Reactive.Linq;
 using System.Collections.ObjectModel;
@@ -13,6 +14,7 @@ namespace BFGDL.NET.ViewModels;
 public partial class DownloadQueueViewModel : ReactiveObject
 {
     private readonly IDownloadService _downloadService;
+    private readonly IAppPaths _appPaths;
     private readonly SourceList<DownloadQueueItemViewModel> _items = new();
     private readonly ReadOnlyObservableCollection<DownloadQueueItemViewModel> _visibleItems;
 
@@ -21,9 +23,10 @@ public partial class DownloadQueueViewModel : ReactiveObject
 
     public ReadOnlyObservableCollection<DownloadQueueItemViewModel> Items => _visibleItems;
 
-    public DownloadQueueViewModel(IDownloadService downloadService)
+    public DownloadQueueViewModel(IDownloadService downloadService, IAppPaths appPaths)
     {
         _downloadService = downloadService;
+        _appPaths = appPaths;
 
         _items.Connect()
             .Bind(out _visibleItems)
@@ -37,7 +40,8 @@ public partial class DownloadQueueViewModel : ReactiveObject
     public void EnqueueGame(CatalogGameSummary summary, GameInfo gameInfo)
     {
         IsDrawerExpanded = true;
-        var item = new DownloadQueueItemViewModel(summary.Name, gameInfo, _downloadService, RemoveItem);
+        var downloadPath = Path.Combine(_appPaths.GamesDirectory, gameInfo.SanitizedDisplayName);
+        var item = new DownloadQueueItemViewModel(summary.Name, gameInfo, downloadPath, _downloadService, RemoveItem);
         _items.Add(item);
         item.StartDownload();
     }

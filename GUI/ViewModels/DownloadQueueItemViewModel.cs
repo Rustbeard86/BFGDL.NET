@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Reactive;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
@@ -20,23 +22,29 @@ public partial class DownloadQueueItemViewModel : ReactiveObject
     [Reactive] private bool _isComplete;
     [Reactive] private bool _isFailed;
 
+    public string DownloadPath { get; }
+
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }
     public ReactiveCommand<Unit, Unit> DismissCommand { get; }
+    public ReactiveCommand<Unit, Unit> OpenFolderCommand { get; }
 
     public DownloadQueueItemViewModel(
         string gameName,
         GameInfo gameInfo,
+        string downloadPath,
         IDownloadService downloadService,
         Action<DownloadQueueItemViewModel> removeCallback)
     {
         _gameName = gameName;
         _gameInfo = gameInfo;
+        DownloadPath = downloadPath;
         _downloadService = downloadService;
         _removeCallback = removeCallback;
 
         var canCancel = this.WhenAnyValue(x => x.IsComplete, x => x.IsFailed, (c, f) => !c && !f);
         CancelCommand = ReactiveCommand.Create(Cancel, canCancel);
         DismissCommand = ReactiveCommand.Create(() => removeCallback(this));
+        OpenFolderCommand = ReactiveCommand.Create(OpenFolder);
     }
 
     public void StartDownload()
@@ -87,5 +95,19 @@ public partial class DownloadQueueItemViewModel : ReactiveObject
     {
         _cts?.Cancel();
         StatusText = "Cancelling…";
+    }
+
+    private void OpenFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(DownloadPath);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = DownloadPath,
+                UseShellExecute = true
+            });
+        }
+        catch { /* best-effort */ }
     }
 }

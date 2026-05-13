@@ -20,13 +20,15 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="200" />
-                                <ColumnDefinition Width="80" />
+                                <ColumnDefinition Width="140" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
                             <!-- Game name + segments -->
-                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,0"
+                                        ToolTip="{Binding DownloadPath}">
                                 <TextBlock Text="{Binding GameName}"
                                            FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis" />
@@ -41,16 +43,28 @@
                                          Maximum="1"
                                          VerticalAlignment="Center" />
 
-                            <!-- Status -->
+                            <!-- Status (full text in tooltip) -->
                             <TextBlock Grid.Column="2"
                                        Text="{Binding StatusText}"
+                                       ToolTip="{Binding StatusText}"
                                        VerticalAlignment="Center"
                                        Margin="8,0"
                                        Foreground="{StaticResource TextSecondaryBrush}"
-                                       FontSize="11" />
+                                       FontSize="11"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <!-- Open folder -->
+                            <Button Grid.Column="3"
+                                    Content="📁"
+                                    Command="{Binding OpenFolderCommand}"
+                                    ToolTip="{Binding DownloadPath}"
+                                    Margin="4,0"
+                                    Padding="6,4"
+                                    FontSize="11"
+                                    Background="Transparent" />
 
                             <!-- Cancel -->
-                            <Button Grid.Column="3"
+                            <Button Grid.Column="4"
                                     Content="Cancel"
                                     Command="{Binding CancelCommand}"
                                     Margin="4,0"
@@ -59,7 +73,7 @@
                                     Background="{StaticResource SurfaceBrush}" />
 
                             <!-- Dismiss -->
-                            <Button Grid.Column="4"
+                            <Button Grid.Column="5"
                                     Content="✕"
                                     Command="{Binding DismissCommand}"
                                     Padding="6,4"
