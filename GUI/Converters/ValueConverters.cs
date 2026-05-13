@@ -57,7 +57,25 @@ public sealed class NotNullToVisibilityConverter : IValueConverter
 }
 
 /// <summary>
-/// Converts a URL string to a BitmapImage via the shared <see cref="ImageCache"/>.
+/// Converts a bool to one of two strings split by '|' in ConverterParameter.
+/// Format: "TrueText|FalseText".  Defaults to empty string for either side if not supplied.
+/// </summary>
+[ValueConversion(typeof(bool), typeof(string))]
+public sealed class BoolToStringConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var parts = (parameter as string)?.Split('|') ?? [];
+        return value is true
+            ? (parts.Length > 0 ? parts[0] : string.Empty)
+            : (parts.Length > 1 ? parts[1] : string.Empty);
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>
 /// Returns null for null/empty/whitespace so BitmapImage never throws "UriSource must be set".
 /// </summary>
 [ValueConversion(typeof(string), typeof(BitmapImage))]

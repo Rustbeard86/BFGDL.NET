@@ -157,8 +157,10 @@ public sealed class BigFishGamesClient(
                 .FirstOrDefault(m => m.Element("name")?.Value == "urlName")
                 ?.Element("value")?.Element("string")?.Value;
 
-            // Filter out demo segments
-            if (fileName != null && urlName != null && !fileName.Contains(".demo."))
+            // Filter out demo/trial segments — only keep full-game content
+            if (fileName != null && urlName != null
+                && !fileName.Contains(".demo.", StringComparison.OrdinalIgnoreCase)
+                && !fileName.Contains(".trial.", StringComparison.OrdinalIgnoreCase))
                 segments.Add(new DownloadSegment
                 {
                     FileName = fileName,

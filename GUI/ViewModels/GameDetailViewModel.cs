@@ -1,3 +1,4 @@
+using System.Reactive;
 using System.Reactive.Linq;
 using ReactiveUI;
 using ReactiveUI.SourceGenerators;
@@ -12,8 +13,11 @@ public partial class GameDetailViewModel : ReactiveObject
     private readonly CatalogCache _cache;
     private readonly ImagePreloader _preloader;
     private readonly IDiskImageStore _diskImageStore;
+    private readonly IBigFishGamesClient _bfgClient;
+    private readonly DownloadQueueViewModel _downloadQueue;
 
     [Reactive] private bool _isLoading;
+    [Reactive] private bool _isQueueing;
     [Reactive] private string _name = string.Empty;
     [Reactive] private string _heroImageUrl = string.Empty;
     [Reactive] private string _featureImageUrl = string.Empty;
@@ -26,13 +30,49 @@ public partial class GameDetailViewModel : ReactiveObject
     [Reactive] private CatalogGameSummary? _currentSummary;
     [Reactive] private CatalogGameDetail? _detail;
 
+    public ReactiveCommand<Unit, Unit> QueueDownloadCommand { get; }
+
     public GameDetailViewModel(BigFishCatalogClient catalog, CatalogCache cache,
-        ImagePreloader preloader, IDiskImageStore diskImageStore)
+        ImagePreloader preloader, IDiskImageStore diskImageStore,
+        IBigFishGamesClient bfgClient, DownloadQueueViewModel downloadQueue)
     {
         _catalog = catalog;
         _cache = cache;
         _preloader = preloader;
         _diskImageStore = diskImageStore;
+        _bfgClient = bfgClient;
+        _downloadQueue = downloadQueue;
+
+        // Enabled only when a game is loaded and not already queuing
+        var canQueue = this.WhenAnyValue(
+            x => x.CurrentSummary,
+            x => x.IsQueueing,
+            (s, q) => s is not null && !q);
+
+        QueueDownloadCommand = ReactiveCommand.CreateFromTask(QueueDownloadAsync, canQueue);
+    }
+
+    private async Task QueueDownloadAsync(CancellationToken ct)
+    {
+        var summary = CurrentSummary;
+        if (summary is null) return;
+
+        IsQueueing = true;
+        try
+        {
+            var gameInfo = await _bfgClient.GetGameInfoAsync(summary.WrapId, ct);
+            _downloadQueue.EnqueueGame(summary, gameInfo);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            // Surface the error as a failed queue item so the queue drawer shows it
+            System.Diagnostics.Debug.WriteLine($"QueueDownload failed: {ex.Message}");
+        }
+        finally
+        {
+            IsQueueing = false;
+        }
     }
 
     public void LoadGame(CatalogGameSummary summary)

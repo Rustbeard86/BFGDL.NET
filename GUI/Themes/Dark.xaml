@@ -9,6 +9,7 @@
     <conv:NonZeroToVisibilityConverter x:Key="NonZeroToVisibilityConverter" />
     <conv:NotNullToVisibilityConverter x:Key="NotNullToVisibilityConverter" />
     <conv:StringToImageSourceConverter x:Key="StringToImageSourceConverter" />
+    <conv:BoolToStringConverter x:Key="BoolToStringConverter" />
 
     <!-- Colours -->
     <Color x:Key="BackgroundColor">#FF1A1A2E</Color>

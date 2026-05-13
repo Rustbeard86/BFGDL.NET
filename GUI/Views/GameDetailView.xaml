@@ -102,8 +102,9 @@
                         </StackPanel>
 
                         <Button Grid.Column="1" VerticalAlignment="Bottom"
-                                Content="+ Queue Download"
-                                x:Name="QueueDownloadButton" />
+                                Command="{Binding QueueDownloadCommand}"
+                                Content="{Binding IsQueueing, Converter={StaticResource BoolToStringConverter},
+                                         ConverterParameter='Fetching…|+ Queue Download'}" />
                     </Grid>
                 </Grid>
 
