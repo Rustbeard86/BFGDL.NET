@@ -16,82 +16,79 @@ $commonArgs = @(
     "/p:PublishTrimmed=false"
 )
 
-# ── Helper: backup cache/, publish, restore cache/ ──────────────────────────
+# ── Helper: backup all cache/ subtrees, clean output dir, publish all projects, restore ──
 #
-# Each publish output folder may contain a cache/ directory with downloaded
-# metadata and images that we don't want to nuke on every publish run.
-# This function moves it aside before the publish (which clobbers the output
-# dir), runs dotnet publish, then moves it back in a finally block.
+# Accepts multiple ProjectPaths — all are published into the same OutDir after a
+# single backup/wipe cycle, so CLI and GUI share one directory (and one cache).
 #
 function Invoke-PublishWithCacheBackup {
     param(
-        [string]   $ProjectPath,
+        [string[]] $ProjectPaths,
         [string]   $OutDir,
         [string[]] $ExtraArgs
     )
 
-    $cacheDir  = Join-Path $OutDir "cache"
-    $backupDir = Join-Path $OutDir ".cache_backup_tmp"
+    # Backup lives NEXT TO $OutDir, never inside it.
+    $backupRoot  = "${OutDir}__cache_bak"
+    $restoreList = [System.Collections.Generic.List[pscustomobject]]::new()
 
-    # Move existing cache out of the way
-    if (Test-Path $cacheDir) {
-        Write-Host "  [cache] Backing up $cacheDir"
-        if (Test-Path $backupDir) { Remove-Item $backupDir -Recurse -Force }
-        Move-Item $cacheDir $backupDir
+    if (Test-Path $OutDir) {
+        $absOut = (Resolve-Path $OutDir).Path.TrimEnd('\')
+
+        # Move every cache/ subtree aside before the wipe.
+        Get-ChildItem $absOut -Recurse -Directory -Filter "cache" -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                $relPath = $_.FullName.Substring($absOut.Length).TrimStart('\')
+                $dest    = Join-Path $backupRoot $relPath
+                Write-Host "  [cache] Backing up $($_.FullName)"
+                $null = New-Item -ItemType Directory -Path (Split-Path $dest -Parent) -Force
+                if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
+                Move-Item $_.FullName $dest
+                $restoreList.Add([pscustomobject]@{ Target = $_.FullName; Source = $dest })
+            }
+
+        Write-Host "  [clean] Wiping $absOut"
+        Remove-Item $absOut -Recurse -Force
     }
 
     try {
-        dotnet publish $ProjectPath @commonArgs @ExtraArgs -o $OutDir
+        foreach ($proj in $ProjectPaths) {
+            dotnet publish $proj @commonArgs @ExtraArgs -o $OutDir
+        }
     }
     finally {
-        # Restore cache regardless of publish success/failure
-        if (Test-Path $backupDir) {
-            Write-Host "  [cache] Restoring $cacheDir"
-            if (Test-Path $cacheDir) { Remove-Item $cacheDir -Recurse -Force }
-            Move-Item $backupDir $cacheDir
+        # Restore all caches regardless of publish success/failure.
+        foreach ($item in $restoreList) {
+            Write-Host "  [cache] Restoring $($item.Target)"
+            $null = New-Item -ItemType Directory -Path (Split-Path $item.Target -Parent) -Force
+            if (Test-Path $item.Target) { Remove-Item $item.Target -Recurse -Force }
+            Move-Item $item.Source $item.Target
+        }
+        if (Test-Path $backupRoot) {
+            Remove-Item $backupRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 }
 
-# ── 1. CLI — framework-dependent (small, requires .NET runtime installed) ──
+# ── 1. Framework-dependent — CLI + GUI share one directory ──────────────────
 $fdOut = "publish\framework-dependent"
 Write-Host ""
-Write-Host "==> CLI  framework-dependent  ->  $fdOut"
+Write-Host "==> framework-dependent  (CLI + GUI)  ->  $fdOut"
 Invoke-PublishWithCacheBackup `
-    -ProjectPath ".\BFGDL.NET.csproj" `
-    -OutDir      $fdOut `
-    -ExtraArgs   @("/p:SelfContained=false")
+    -ProjectPaths @(".\BFGDL.NET.csproj", ".\GUI\BFGDL.NET.GUI.csproj") `
+    -OutDir       $fdOut `
+    -ExtraArgs    @("/p:SelfContained=false")
 
-# ── 2. CLI — self-contained / release (single fat binary, no runtime needed) ──
+# ── 2. Self-contained / release — CLI + GUI share one directory ─────────────
 $scOut = "publish\release"
 Write-Host ""
-Write-Host "==> CLI  self-contained        ->  $scOut"
+Write-Host "==> self-contained       (CLI + GUI)  ->  $scOut"
 Invoke-PublishWithCacheBackup `
-    -ProjectPath ".\BFGDL.NET.csproj" `
-    -OutDir      $scOut `
-    -ExtraArgs   @("/p:SelfContained=true")
-
-# ── 3. GUI — framework-dependent ──
-$guiFdOut = "publish\framework-dependent\gui"
-Write-Host ""
-Write-Host "==> GUI  framework-dependent  ->  $guiFdOut"
-Invoke-PublishWithCacheBackup `
-    -ProjectPath ".\GUI\BFGDL.NET.GUI.csproj" `
-    -OutDir      $guiFdOut `
-    -ExtraArgs   @("/p:SelfContained=false")
-
-# ── 4. GUI — self-contained / release ──
-$guiScOut = "publish\release\gui"
-Write-Host ""
-Write-Host "==> GUI  self-contained        ->  $guiScOut"
-Invoke-PublishWithCacheBackup `
-    -ProjectPath ".\GUI\BFGDL.NET.GUI.csproj" `
-    -OutDir      $guiScOut `
-    -ExtraArgs   @("/p:SelfContained=true")
+    -ProjectPaths @(".\BFGDL.NET.csproj", ".\GUI\BFGDL.NET.GUI.csproj") `
+    -OutDir       $scOut `
+    -ExtraArgs    @("/p:SelfContained=true")
 
 Write-Host ""
 Write-Host "Done."
-Write-Host "  CLI  framework-dependent : $fdOut"
-Write-Host "  CLI  self-contained      : $scOut"
-Write-Host "  GUI  framework-dependent : $guiFdOut"
-Write-Host "  GUI  self-contained      : $guiScOut"
+Write-Host "  framework-dependent : $fdOut"
+Write-Host "  self-contained      : $scOut"

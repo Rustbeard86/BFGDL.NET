@@ -13,6 +13,7 @@ namespace BFGDL.NET.ViewModels;
 
 public partial class BrowserViewModel : ReactiveObject
 {
+    private readonly GuiPreferences _guiPreferences;
     private readonly BigFishCatalogClient _catalog;
     private readonly CatalogCache _cache;
     private readonly ImagePreloader _preloader;
@@ -34,6 +35,7 @@ public partial class BrowserViewModel : ReactiveObject
     [Reactive] private int _totalCount;
     [Reactive] private string _statusText = string.Empty;
     [Reactive] private bool _allCachedPagesLoaded;
+    [Reactive] private bool _launchOnPrimaryMonitor;
 
     public ReadOnlyObservableCollection<CatalogGameSummary> FilteredGames => _filteredGames;
 
@@ -55,8 +57,10 @@ public partial class BrowserViewModel : ReactiveObject
     public BrowserViewModel(BigFishCatalogClient catalog, CatalogCache cache,
         ImagePreloader preloader, IDiskImageStore diskImageStore,
         GameDetailViewModel detail, DownloadQueueViewModel downloadQueue,
-        CacheManagerViewModel cacheManager)
+        CacheManagerViewModel cacheManager, GuiPreferences guiPreferences)
     {
+        _guiPreferences = guiPreferences;
+        _launchOnPrimaryMonitor = guiPreferences.LaunchOnPrimaryMonitor;
         _catalog = catalog;
         _cache = cache;
         _preloader = preloader;
@@ -64,6 +68,10 @@ public partial class BrowserViewModel : ReactiveObject
         Detail = detail;
         DownloadQueue = downloadQueue;
         CacheManager = cacheManager;
+
+        this.WhenAnyValue(x => x.LaunchOnPrimaryMonitor)
+            .Skip(1)
+            .Subscribe(v => { guiPreferences.LaunchOnPrimaryMonitor = v; guiPreferences.Save(); });
 
         // Filter pipeline
         var filterChanged = this.WhenAnyValue(
@@ -304,7 +312,7 @@ public partial class BrowserViewModel : ReactiveObject
         {
             foreach (var game in list)
                 if (!string.IsNullOrWhiteSpace(game.ThumbnailUrl))
-                    await _diskImageStore.DownloadAsync(
+                    _ = await _diskImageStore.DownloadAsync(
                         game.ThumbnailUrl, game.WrapId, CancellationToken.None)
                         .ConfigureAwait(false);
         });

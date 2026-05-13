@@ -25,7 +25,8 @@ public interface IDiskImageStore
     /// <summary>
     /// Downloads the image at <paramref name="url"/> into
     /// <c>cache/games/{wrapId}/images/</c> if it has not been downloaded yet,
-    /// then returns the absolute local path. Returns <c>null</c> on failure.
+    /// then returns the absolute local path and whether the file was newly written.
+    /// Returns <c>(null, false)</c> on failure.
     /// </summary>
-    Task<string?> DownloadAsync(string url, string wrapId, CancellationToken ct = default);
+    Task<(string? Path, bool IsNew)> DownloadAsync(string url, string wrapId, CancellationToken ct = default);
 }

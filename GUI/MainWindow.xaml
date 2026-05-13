@@ -94,6 +94,11 @@
                             Margin="12,0,0,0"
                             Padding="10,4"
                             ToolTip="Open Cache Manager to download metadata and images for all languages" />
+                    <CheckBox Content="Primary monitor"
+                              IsChecked="{Binding LaunchOnPrimaryMonitor}"
+                              VerticalAlignment="Center"
+                              Margin="16,0,0,0"
+                              ToolTip="Always launch on the primary monitor" />
                     <TextBlock Text="{Binding StatusText}"
                                Margin="16,0,0,0"
                                VerticalAlignment="Center"

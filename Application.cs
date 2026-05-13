@@ -19,6 +19,8 @@ public sealed class Application(
         if (options.CacheCatalog)
         {
             var fetcher = serviceProvider.GetRequiredService<CatalogFetchService>();
+            var cache   = serviceProvider.GetRequiredService<CatalogCache>();
+            await cache.MigrateAsync(CancellationToken.None);
             var languages = options.AllLanguages
                 ? CatalogFetchService.SupportedLanguages
                 : (IReadOnlyList<Language>)[appConfiguration.Language];

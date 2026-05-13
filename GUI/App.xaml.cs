@@ -38,7 +38,21 @@ public partial class App : Application
         await diskStore.InitializeAsync();
         ImageCache.DiskStore = diskStore;
 
+        // One-time migration: consolidate legacy page-numbered cache files into batch files.
+        var catalogCache = Services.GetRequiredService<CatalogCache>();
+        await catalogCache.MigrateAsync();
+
+        var prefs = Services.GetRequiredService<GuiPreferences>();
         var mainWindow = Services.GetRequiredService<MainWindow>();
+
+        if (prefs.LaunchOnPrimaryMonitor)
+        {
+            var workArea = System.Windows.SystemParameters.WorkArea;
+            mainWindow.WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+            mainWindow.Left = workArea.Left + (workArea.Width  - mainWindow.Width)  / 2;
+            mainWindow.Top  = workArea.Top  + (workArea.Height - mainWindow.Height) / 2;
+        }
+
         mainWindow.Show();
     }
 
@@ -56,6 +70,7 @@ public partial class App : Application
 
         // Paths
         services.AddSingleton<IAppPaths, GuiAppPaths>();
+        services.AddSingleton(GuiPreferences.Load());
 
         // Download options — GUI always downloads, no CLI flags involved
         services.AddSingleton(new DownloadOptions { Download = true });

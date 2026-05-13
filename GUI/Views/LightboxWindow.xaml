@@ -4,7 +4,6 @@
         WindowStyle="None"
         AllowsTransparency="True"
         Background="Transparent"
-        WindowState="Maximized"
         ShowInTaskbar="False"
         KeyDown="Window_KeyDown">
 

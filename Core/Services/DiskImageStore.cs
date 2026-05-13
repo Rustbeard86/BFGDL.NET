@@ -108,14 +108,14 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
 
     // ── Download ──────────────────────────────────────────────────────────────
 
-    public async Task<string?> DownloadAsync(string url, string wrapId,
+    public async Task<(string? Path, bool IsNew)> DownloadAsync(string url, string wrapId,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(wrapId))
-            return null;
+            return (null, false);
 
         // Already in local cache — no download needed
-        if (_index.TryGetValue(url, out var cached)) return cached;
+        if (_index.TryGetValue(url, out var cached)) return (cached, false);
 
         // For images that don't carry language-specific text, reuse the English copy if
         // it is already on disk — register the new URL pointing to the same file without
@@ -129,7 +129,7 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
                 // Persist the cross-reference in the English game's index so it survives restart
                 await UpdateIndexAsync(url, Path.GetFileName(enPath),
                     Path.GetDirectoryName(enPath)!, ct).ConfigureAwait(false);
-                return enPath;
+                return (enPath, false);
             }
         }
 
@@ -146,7 +146,7 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
             {
                 await UpdateIndexAsync(url, filename, imagesDir, ct).ConfigureAwait(false);
                 _index[url] = localPath;
-                return localPath;
+                return (localPath, false);
             }
 
             // Download → temp file → atomic move
@@ -173,7 +173,7 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
             catch
             {
                 try { File.Delete(tmp); } catch { }
-                return null;
+                return (null, false);
             }
 
             await UpdateIndexAsync(url, filename, imagesDir, ct).ConfigureAwait(false);
@@ -187,10 +187,10 @@ public sealed class DiskImageStore(IAppPaths paths, HttpClient httpClient) : IDi
                     await UpdateIndexAsync(enUrl, filename, imagesDir, ct).ConfigureAwait(false);
             }
 
-            return localPath;
+            return (localPath, true);
         }
         catch (OperationCanceledException) { throw; }
-        catch { return null; }
+        catch { return (null, false); }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
