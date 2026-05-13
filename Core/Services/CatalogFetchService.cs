@@ -141,9 +141,19 @@ public sealed class CatalogFetchService(
                         var idx = Interlocked.Increment(ref processed);
                         if (progress is null)
                             Console.Write($"\r│    [{idx}/{n}] {Truncate(detail.Name, 46),-47}");
-                        await cache.SaveDetailAsync(detail, gameCt).ConfigureAwait(false);
-                        Interlocked.Increment(ref stats.GamesNew);
-                        await FetchImagesAsync(detail, stats, gameCt).ConfigureAwait(false);
+                        try
+                        {
+                            await cache.SaveDetailAsync(detail, gameCt).ConfigureAwait(false);
+                            Interlocked.Increment(ref stats.GamesNew);
+                            await FetchImagesAsync(detail, stats, gameCt).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) { throw; }
+                        catch (Exception ex)
+                        {
+                            Interlocked.Increment(ref stats.GamesFailed);
+                            logger.LogError(ex, "Failed to process game {WrapId} ({Name})",
+                                detail.WrapId, detail.Name);
+                        }
                     }).ConfigureAwait(false);
 
                 if (progress is null) Console.Write('\r');
